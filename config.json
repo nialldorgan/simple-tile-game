@@ -1,0 +1,45 @@
+
+{
+    "difficultyLevels": [
+        {
+            "level": "Easy",
+            "moves": 60
+        },
+        {
+            "level": "Moderate",
+            "moves": 100
+        },
+        {
+            "level": "Hard",
+            "moves": 140
+        }
+    ],
+    "defaultTileProfile" : {
+        "color": "hsla(300, 96%, 28%, 1.00)",
+        "displayIndex": true,
+        "img": null
+    },
+    "defaultGridSize": 5,
+    "gridOptions": [
+        {
+            "label": "3x3",
+            "value": 3
+        },
+        {
+            "label": "4x4",
+            "value": 4
+        },
+        {
+            "label": "5x5",
+            "value": 5
+        },
+        {
+            "label": "6x6",
+            "value": 6
+        },
+        {
+            "label": "7x7",
+            "value": 7
+        }
+    ]
+}
