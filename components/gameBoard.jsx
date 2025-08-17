@@ -1,15 +1,17 @@
 import GameGrid from '@/components/gameGrid'
 import config from '../config.json' with { type: "json" }
 import { View, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import  SelectorComponent from '@/components/selectorComponent'
 import Big from 'big.js'
 import { Button, Menu, Divider, Text, TextInput, TextInputIcon } from 'react-native-paper'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+// import React, { useImperativeHandle, forwardRef } from 'react'
 
 
-export default function GameBoard () {
+const GameBoard = forwardRef((props, ref) => {
 
   const getNeighbouringSquares = (row, col, gridSize) => {
     const neighbours = []
@@ -52,8 +54,26 @@ export default function GameBoard () {
       setNumberOfMoves(numberOfMoves => numberOfMoves+1)
       return newGameState
     })    
-  }
+  }  
+
   const [imageTiles, setImageTiles] = useState([])
+  const [tileImage, setTileImage] = useState(null)
+
+  useEffect(() => {
+    const fetchTileImage = async () => {
+      try {
+        const storedImage = await AsyncStorage.getItem('tile-image');
+        if (storedImage !== null) {
+          setTileImage(storedImage)
+          setGamePhase('newImageSelected')
+        }
+      } catch (e) {
+        console.log('Error loading tile image:', e);
+      }
+    };
+
+    fetchTileImage();
+  }, [])
 
   const fillGameBoardGridSquares = () => {
     
@@ -155,9 +175,9 @@ export default function GameBoard () {
         height: targetHeight,
         width: targetWidth
       }}],
-      { compress: 1, format: ImageManipulator.SaveFormat.PNG }
+      { compress: 1, format: ImageManipulator.SaveFormat.PNG, base64: true }
     )
-    return resizedImage.uri
+    return resizedImage
   }
   
   const pickImage = async () => {
@@ -166,16 +186,46 @@ export default function GameBoard () {
       mediaTypes: ['images', 'videos'],
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 1      
     })
 
     if (!result.canceled) {
       //chop the image and assign it to gameState
-      const imageUri = await resizeImage(result.assets[0].uri, boardSize, boardSize)
-      const tiles = await chopImageIntoTiles(imageUri, gridSize, calculateTileSize())
-      setImageTiles(tiles)
-      resetBoard()
+      const image = await resizeImage(result.assets[0].uri, boardSize, boardSize)
+      try {
+        await AsyncStorage.setItem('tile-image', 'data:image/xxx;base64,' + image.base64)
+      } catch (e) {
+        console.log(e)
+      }
+      setTileImage(image.uri)
+      setGamePhase('newImageSelected')
+    }
+  }
 
+  const createTiles = async () => {
+    if (tileImage) {
+      const tiles = await chopImageIntoTiles(tileImage, gridSize, calculateTileSize())
+      setImageTiles(tiles)
+    } else {
+      setImageTiles([])
+    }
+  }  
+
+  const storeData = async (value) => {
+    try {
+      const jsonValue = JSON.stringify(value);
+      await AsyncStorage.setItem('my-key', jsonValue);
+    } catch (e) {
+      // saving error
+    }
+  }
+
+  const getData = async (key) => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(key);
+      return jsonValue != null ? JSON.parse(jsonValue) : null;
+    } catch (e) {
+      // error reading value
     }
   }
 
@@ -259,7 +309,8 @@ export default function GameBoard () {
     return p
   }
   
-  const resetBoard = function () {
+  const resetBoard = async function () {
+    await createTiles()
     setGamePhase('preparing')    
   }
 
@@ -268,6 +319,12 @@ export default function GameBoard () {
     setGamePhase('resetting')
 
   }
+
+  useEffect(() => {
+    if (gamePhase === 'gridSizeChanged' || gamePhase === 'newImageSelected') {
+      resetBoard()
+    }
+  })
 
   useEffect(() => {
     if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
@@ -318,6 +375,13 @@ export default function GameBoard () {
       }, 1000))
     }
   }, [gamePhase])
+
+  useImperativeHandle(ref, () => ({
+    newGame,
+    pickImage,
+    resetBoard
+    // expose other methods if needed
+  }))
   
   return (
     <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -329,11 +393,16 @@ export default function GameBoard () {
         <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text>
       </View>
       <View style={styles.gameControlArea}>
-        <View style={{marginBottom: 8, flexDirection: 'row', alignItems: 'center'}}>
+        <View style={{marginBottom: 8, marginTop: 8, flexDirection: 'row', alignItems: 'center'}}>
           <Menu
             visible={difficultyMenu}
             onDismiss={() => closeMenu('setDifficultyMenu')}
-            anchor={<Button onPress={() => {openMenu('setDifficultyMenu')}} mode='contained' buttonColor='#68b682ff' textColor='#ffffff' style={{margin: 10}}>Difficulty</Button>}>
+            anchor={
+            <Button 
+            onPress={() => {openMenu('setDifficultyMenu')}} 
+            mode='outlined' textColor='#c7b517ff' 
+            textColor='#ffffff' 
+            style={styles.settingButtons}>Difficulty</Button>}>
               { config.difficultyLevels.map(level => (
                 <Menu.Item onPress={() => {                  
                   setDifficultyLevel(level.moves) 
@@ -342,51 +411,33 @@ export default function GameBoard () {
               ))}              
             </Menu>
           { config.difficultyLevels.filter(level => level.moves === difficultyLevel).map(level => (
-            <Text variant="titleMedium" style={styles.defaultText} key={level.level}>{level.level}</Text>
+            <Text variant="titleMedium" style={[styles.defaultText, {marginRight: 15}]} key={level.level}>{level.level}</Text>
            ))}
-           </View>
-           <View style={{marginBottom: 8, flexDirection: 'row', alignItems: 'center'}}>
            <Menu
             visible={gridSizeMenu}
             onDismiss={() => closeMenu('grid')}
-            anchor={<Button onPress={() => openMenu('grid')} mode='contained' buttonColor='#68b682ff' textColor='#ffffff' style={{margin: 10}}>Grid size</Button>}>
+            anchor={
+            <Button
+            compact={true}
+            onPress={() => openMenu('grid')} 
+            mode='outlined' 
+            textColor='#c7b517ff' 
+            textColor='#ffffff' 
+            style={styles.settingButtons}>Grid size</Button>}>
               { gridOptions.map(option => (                
                 <Menu.Item
                   key={option.value}
                   onPress={() => {
                     setGridSize(option.value)
                     closeMenu('grid')
-                    resetBoard()
+                    setGamePhase('gridSizeChanged')
                   }}
                   title={option.label}
                 />
               ))}
             </Menu>
-            <Text variant="titleMedium" style={styles.defaultText}>{gridSize}x{gridSize}</Text>
-        </View>
-        <View style={{flexDirection: 'row', marginBottom: 8}}>
-          <View style={styles.newGameButton}>
-            <Button
-            mode="contained"
-            buttonColor='#68b682ff'
-            textColor='#ffffff'
-            onPress={newGame}>New Game</Button>
-          </View>
-          <View style={styles.newGameButton}>
-            <Button
-            mode="contained"
-            buttonColor='#68b682ff'
-            textColor='#ffffff'
-            onPress={resetBoard}>Reset</Button>
-          </View>
-          <View style={styles.newGameButton}>
-            <Button
-            mode="contained"
-            buttonColor='#68b682ff'
-            textColor='#ffffff'
-            onPress={pickImage}>Select an image</Button>
-          </View>         
-        </View>        
+            <Text variant="titleMedium" style={styles.defaultText}>{gridSize}x{gridSize}</Text>            
+        </View>              
       </View>
         
       <ScrollView horizontal={true}>
@@ -394,7 +445,9 @@ export default function GameBoard () {
       </ScrollView>      
     </ScrollView>
   )
-}
+})
+
+export default GameBoard
 
 const styles = StyleSheet.create({
   contentContainer: {
@@ -407,12 +460,7 @@ const styles = StyleSheet.create({
     color: '#ffffff'
   },
 
-  newGameButton: {
-    margin: 2,
-    borderRadius: 5,
-    padding: 2,
-    minHeight: 40
-  },
+  settingButtons: {marginRight: 15, borderRadius: 5, borderWidth: 2, borderColor: '#fab802ff'},
 
   menuButton: {
     textColor: '#ffffff'

@@ -12,12 +12,13 @@ export default function RootLayout() {
         headerStyle: {
           backgroundColor: '#25292e'
         },
+        headerLargeTitle: true,
         headerShadowVisible: false,
         headerTintColor: '#fff',
-        headerTitle: 'Home',
-
+        headerTitle: 'Slider Challenge',
+        headerTitleAlign: 'center'
       }}/>
-      <StatusBar style="light" />
+      <StatusBar style="light"/>
     </ThemeProvider>
   )
   
