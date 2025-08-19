@@ -3,15 +3,7 @@
     "difficultyLevels": [
         {
             "level": "Easy",
-            "moves": 60
-        },
-        {
-            "level": "Moderate",
-            "moves": 100
-        },
-        {
-            "level": "Hard",
-            "moves": 140
+            "moves": 40
         }
     ],
     "defaultTileProfile" : {
@@ -19,7 +11,7 @@
         "displayIndex": true,
         "img": null
     },
-    "defaultGridSize": 5,
+    "defaultGridSize": 4,
     "gridOptions": [
         {
             "label": "3x3",
@@ -36,10 +28,6 @@
         {
             "label": "6x6",
             "value": 6
-        },
-        {
-            "label": "7x7",
-            "value": 7
         }
     ]
 }

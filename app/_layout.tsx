@@ -8,16 +8,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{
-        headerStyle: {
-          backgroundColor: '#25292e'
-        },
-        headerLargeTitle: true,
-        headerShadowVisible: false,
-        headerTintColor: '#fff',
-        headerTitle: 'Slider Challenge',
-        headerTitleAlign: 'center'
-      }}/>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>     
       <StatusBar style="light"/>
     </ThemeProvider>
   )

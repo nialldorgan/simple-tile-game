@@ -1,8 +1,7 @@
 import GameGrid from '@/components/gameGrid'
 import config from '../config.json' with { type: "json" }
-import { View, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native'
+import { View, ScrollView, StyleSheet, Dimensions, Platform, StatusBar } from 'react-native'
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
-import  SelectorComponent from '@/components/selectorComponent'
 import Big from 'big.js'
 import { Button, Menu, Divider, Text, TextInput, TextInputIcon } from 'react-native-paper'
 import * as ImagePicker from 'expo-image-picker'
@@ -108,7 +107,7 @@ const GameBoard = forwardRef((props, ref) => {
 
   const calculateWindowSize = () => {
     if (Platform.OS !== 'web') {
-      return Dimensions.get('window').width - 40
+      return Dimensions.get('window').width-10
     }
     return 400
   }
@@ -260,13 +259,13 @@ const GameBoard = forwardRef((props, ref) => {
   
 
   const shuffleGameBoard = function () {
-    let moves = difficultyLevel
+    let moves = difficultyLevel*gridSize
     const empty = { rowIndex: gridSize-1, colIndex: gridSize-1 }
     const prevSquare = { rowIndex: gridSize-1, colIndex: gridSize-1 } 
     let p = Promise.resolve()
           
     for (let i=0; i<moves; i++) {
-      p = p.then(() => new Promise(resolve => setTimeout(resolve, 10)))
+      p = p.then(() => new Promise(resolve => setTimeout(resolve, 20)))
         .then(() => {
 
           setGameState(prevState => {
@@ -316,6 +315,9 @@ const GameBoard = forwardRef((props, ref) => {
 
   const newGame = function () {    
     setHasStarted(false)
+    timerInterval? clearInterval(timerInterval) : null      
+    setTimerInterval(null)
+    setGameTimer(0)
     setGamePhase('resetting')
 
   }
@@ -384,66 +386,42 @@ const GameBoard = forwardRef((props, ref) => {
   }))
   
   return (
-    <ScrollView contentContainerStyle={styles.contentContainer}>
-      <View style={{flexDirection: 'row', alignItems: 'center'}}>
-        {/* score area */}
-        <TextInput style={{width: "40%", marginRight: 16}}
-        value={String(gameTimer)}
-        mode="outlined" left={<TextInput.Icon icon="timer-outline"></TextInput.Icon>}></TextInput>
-        <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text>
-      </View>
-      <View style={styles.gameControlArea}>
-        <View style={{marginBottom: 8, marginTop: 8, flexDirection: 'row', alignItems: 'center'}}>
-          <Menu
-            visible={difficultyMenu}
-            onDismiss={() => closeMenu('setDifficultyMenu')}
-            anchor={
-            <Button 
-            onPress={() => {openMenu('setDifficultyMenu')}} 
-            mode='outlined' textColor='#c7b517ff' 
-            textColor='#ffffff' 
-            style={styles.settingButtons}>Difficulty</Button>}>
-              { config.difficultyLevels.map(level => (
-                <Menu.Item onPress={() => {                  
-                  setDifficultyLevel(level.moves) 
-                  closeMenu('setDifficultyMenu')
-                  }} title={level.level} key={level.moves}/>
-              ))}              
-            </Menu>
-          { config.difficultyLevels.filter(level => level.moves === difficultyLevel).map(level => (
-            <Text variant="titleMedium" style={[styles.defaultText, {marginRight: 15}]} key={level.level}>{level.level}</Text>
-           ))}
-           <Menu
-            visible={gridSizeMenu}
-            onDismiss={() => closeMenu('grid')}
-            anchor={
-            <Button
-            compact={true}
-            onPress={() => openMenu('grid')} 
-            mode='outlined' 
-            textColor='#c7b517ff' 
-            textColor='#ffffff' 
-            style={styles.settingButtons}>Grid size</Button>}>
-              { gridOptions.map(option => (                
-                <Menu.Item
-                  key={option.value}
-                  onPress={() => {
-                    setGridSize(option.value)
-                    closeMenu('grid')
-                    setGamePhase('gridSizeChanged')
-                  }}
-                  title={option.label}
-                />
-              ))}
-            </Menu>
-            <Text variant="titleMedium" style={styles.defaultText}>{gridSize}x{gridSize}</Text>            
-        </View>              
-      </View>
-        
-      <ScrollView horizontal={true}>
-        <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>
-      </ScrollView>      
-    </ScrollView>
+      <ScrollView id={'gameBoard'} style={{flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>        
+        <View style={styles.gameControlArea} id={'gameControlArea'}>
+          <View style={{marginBottom: 8, marginTop: 8, flexDirection: 'row', alignContent: 'center', justifyContent: 'space-between', alignItems: 'center'}}> 
+            <TextInput style={{width: "40%", marginRight: 16}}
+            value={String(gameTimer)}
+            mode="outlined" left={<TextInput.Icon icon="timer-outline"></TextInput.Icon>}></TextInput>        
+            <Menu
+              visible={gridSizeMenu}
+              onDismiss={() => closeMenu('grid')}
+              anchor={
+              <Button
+              compact={true}
+              onPress={() => openMenu('grid')} 
+              mode='outlined' 
+              textColor='#FFD54F' 
+              style={styles.settingButtons}>{`${gridSize}x${gridSize}`}</Button>}>
+                { gridOptions.map(option => (                
+                  <Menu.Item
+                    key={option.value}
+                    onPress={() => {
+                      setGridSize(option.value)
+                      closeMenu('grid')
+                      setGamePhase('gridSizeChanged')
+                    }}
+                    title={option.label}
+                  />
+                ))}
+              </Menu>
+              <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text>
+          </View>              
+        </View>          
+        <ScrollView horizontal={true} style={{flexGrow:0}}>
+          <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>
+        </ScrollView>      
+      </ScrollView>
+      
   )
 })
 
@@ -451,16 +429,14 @@ export default GameBoard
 
 const styles = StyleSheet.create({
   contentContainer: {
-    padding: 10,
-    backgroundColor: '#25292e',
-    height: '100%'        
+    // backgroundColor: '#25292e49',      
   },
 
   defaultText: {
     color: '#ffffff'
   },
 
-  settingButtons: {marginRight: 15, borderRadius: 5, borderWidth: 2, borderColor: '#fab802ff'},
+  settingButtons: {marginRight: 15, borderRadius: 5, borderWidth: 2, borderColor: '#FFD54F'},
 
   menuButton: {
     textColor: '#ffffff'
