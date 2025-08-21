@@ -29,5 +29,55 @@
             "label": "6x6",
             "value": 6
         }
+    ],
+    "winnerDialogTiles": [
+        {
+            "line1": "Boom!",
+            "line2": "You crushed it!"
+        },
+        {
+            "line1": "Well, well, well...",
+            "line2": "Look who’s winning!"
+        },
+        {
+            "line1": "Yeh!",
+            "line2": "You did it!"
+        },
+        {
+            "line1": "No way!",
+            "line2": "You actually won?!"
+        },
+        {
+            "line1": "Victory dance!",
+            "line2": "(Insert moves here)"
+        },
+        {
+            "line1": "Achievement Unlocked",
+            "line2": "You’re officially awesome"
+        },
+        {
+            "line1": "Oops...",
+            "line2": "You’re too good at this"
+        },
+        {
+            "line1": "Mic drop.",
+            "line2": "That’s how it’s done."
+        },
+        {
+            "line1": "Winner winner",
+            "line2": "Tofu dinner!"
+        },
+        {
+            "line1": "You absolute legend",
+            "line2": "That was glorious!"
+        },
+        {
+            "line1": "Game over?",
+            "line2": "More like game mastered!"
+        },
+        {
+            "line1": "Cue the confetti!",
+            "line2": "You nailed it!"
+        }
     ]
 }

@@ -8,7 +8,7 @@ import { ImageBackground, Image } from 'expo-image'
 
 
 const Index = () => {
-  const gameRef = useRef()
+  const gameRef = useRef('')
   const handleNewGame = () => {
     gameRef.current?.newGame();
   }

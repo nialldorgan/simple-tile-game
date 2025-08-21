@@ -7,7 +7,8 @@ import { Button, Menu, Divider, Text, TextInput, TextInputIcon } from 'react-nat
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-// import React, { useImperativeHandle, forwardRef } from 'react'
+import GameWinnerDialog from '@/components/gameWinnerDialog'
+import { useReusableFunctions } from '@/hooks/reusableFunctions'
 
 
 const GameBoard = forwardRef((props, ref) => {
@@ -61,17 +62,17 @@ const GameBoard = forwardRef((props, ref) => {
   useEffect(() => {
     const fetchTileImage = async () => {
       try {
-        const storedImage = await AsyncStorage.getItem('tile-image');
+        const storedImage = await AsyncStorage.getItem('tile-image')
         if (storedImage !== null) {
           setTileImage(storedImage)
           setGamePhase('newImageSelected')
         }
       } catch (e) {
-        console.log('Error loading tile image:', e);
+        console.log('Error loading tile image:', e)
       }
     };
 
-    fetchTileImage();
+    fetchTileImage()
   }, [])
 
   const fillGameBoardGridSquares = () => {
@@ -210,23 +211,7 @@ const GameBoard = forwardRef((props, ref) => {
     }
   }  
 
-  const storeData = async (value) => {
-    try {
-      const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem('my-key', jsonValue);
-    } catch (e) {
-      // saving error
-    }
-  }
-
-  const getData = async (key) => {
-    try {
-      const jsonValue = await AsyncStorage.getItem(key);
-      return jsonValue != null ? JSON.parse(jsonValue) : null;
-    } catch (e) {
-      // error reading value
-    }
-  }
+  const {storeData, getData } = useReusableFunctions()  
 
   const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
   const [ gridSize, setGridSize ] = useState(config.defaultGridSize)
@@ -239,7 +224,8 @@ const GameBoard = forwardRef((props, ref) => {
   const [ gridSizeMenu, setGridSizeMenu ] = useState(false)
   const [ numberOfMoves, setNumberOfMoves ] = useState(0)
   const [ gameTimer, setGameTimer ] = useState(0)
-  const [ timerInterval, setTimerInterval ] = useState(0)  
+  const [ timerInterval, setTimerInterval ] = useState(0)
+  const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
 
   const openMenu = (menu) => {
     if (menu === 'grid') {
@@ -307,9 +293,30 @@ const GameBoard = forwardRef((props, ref) => {
     }
     return p
   }
+
+  const onHandleCloseWinnerDialog = () => {
+    setShowWinnerDialog(false)
+  }
+
+  const onHandleRecordScore = async (userName) => {
+    const scoreBoard = await getData('scoreBoard') ?? []
+    const scoreBoardEntry = {
+      userName: userName,
+      gridSize: gridSize,
+      time: gameTimer,
+      moves: numberOfMoves
+    }
+    scoreBoard.push(scoreBoardEntry)
+    await storeData(scoreBoard, 'scoreBoard')
+    setShowWinnerDialog(false)
+  }
   
   const resetBoard = async function () {
-    await createTiles()
+    if (tileImage) {
+      await createTiles()
+    } else {
+      setImageTiles([])
+    }    
     setGamePhase('preparing')    
   }
 
@@ -319,21 +326,20 @@ const GameBoard = forwardRef((props, ref) => {
     setTimerInterval(null)
     setGameTimer(0)
     setGamePhase('resetting')
-
   }
 
   useEffect(() => {
     if (gamePhase === 'gridSizeChanged' || gamePhase === 'newImageSelected') {
       resetBoard()
     }
-  })
+  }, [gamePhase])
 
   useEffect(() => {
-    if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
-      alert(`You won in ${gameTimer} seconds and ${numberOfMoves} moves, well done!`)
+    if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {      
       setHasStarted(false)
       clearInterval(timerInterval)
-      setTimerInterval(null)      
+      setTimerInterval(null)
+      setShowWinnerDialog(true)     
     }
   }, [gameState])
 
@@ -419,7 +425,11 @@ const GameBoard = forwardRef((props, ref) => {
         </View>          
         <ScrollView horizontal={true} style={{flexGrow:0}}>
           <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>
-        </ScrollView>      
+                    
+        </ScrollView>
+        <ScrollView>          
+          <GameWinnerDialog showMe={showWinnerDialog} handleCloseMe={onHandleCloseWinnerDialog} handleRecordScore={onHandleRecordScore}></GameWinnerDialog>
+        </ScrollView>
       </ScrollView>
       
   )
