@@ -6,13 +6,15 @@ import config from '../config.json' with { type: "json" }
 
 type Props = {
   showMe: boolean,
+  moves: number,
+  time: number,
   handleCloseMe: () => void,
   handleRecordScore: () => void
 }
 
-const GameWinnerDialog = ({showMe, handleCloseMe, handleRecordScore}: Props) => {
+const GameWinnerDialog = ({showMe, moves, time, handleCloseMe, handleRecordScore}: Props) => {
   const [ recordScore, setRecordScore ] = React.useState(false)
-  const [ winnerName, setWinnerName ] = React.useState(null)
+  const [ winnerName, setWinnerName ] = React.useState('')
   const choiceRef = React.useRef(Math.floor(Math.random() * config.winnerDialogTiles.length));
   const choice = choiceRef.current;
 
@@ -35,6 +37,7 @@ const GameWinnerDialog = ({showMe, handleCloseMe, handleRecordScore}: Props) => 
                 <View style={{ flexDirection: 'column', alignItems: 'center', width: '100%'}}>                  
                   <Text variant='headlineLarge' style={styles.textHeader}>{config.winnerDialogTiles[choice].line1}</Text>
                   <Text variant='headlineMedium' style={styles.textHeader}>{config.winnerDialogTiles[choice].line2}</Text>
+                  <Text variant='headlineSmall' style={styles.textHeader}>{`${moves} moves in ${time} seconds`}</Text>
                 </View>
               </Dialog.Title>
                 
@@ -67,10 +70,8 @@ const GameWinnerDialog = ({showMe, handleCloseMe, handleRecordScore}: Props) => 
                     <Button mode='contained' buttonColor='#00cfde'  onPress={handleCloseMe}>No</Button>
                   </Dialog.Actions>
                 </View>
-              )}
-                
-            </View>
-              
+              )}                
+            </View>              
           </ImageBackground>
         </Dialog>        
       </Portal>

@@ -9,9 +9,14 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import GameWinnerDialog from '@/components/gameWinnerDialog'
 import { useReusableFunctions } from '@/hooks/reusableFunctions'
+import { useAudioPlayer } from 'expo-audio'
+import * as Haptics from 'expo-haptics'
+import dayjs from 'dayjs'
 
 
 const GameBoard = forwardRef((props, ref) => {
+  const clickPlayer = useAudioPlayer(require('@/assets/sounds/slide.mp3'))
+  const vistoryPlayer = useAudioPlayer(require('@/assets/sounds/fanfare.mp3'))
 
   const getNeighbouringSquares = (row, col, gridSize) => {
     const neighbours = []
@@ -25,10 +30,26 @@ const GameBoard = forwardRef((props, ref) => {
     if (col < gridSize - 1) neighbours.push({ row, col: col + 1 })
     return neighbours
   }
+
+  const playClickSound = () => {    
+    clickPlayer.seekTo(0)
+    clickPlayer.volume = 0.3
+    clickPlayer.play()
+  }
+
+  const playVictoryFanfare = () => {
+    vistoryPlayer.seekTo(0)
+    vistoryPlayer.play()
+  }
+
+  const triggerErrorBuzz = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  }
   
   const onTilePressed = (homePosition, currentPosition, tileIndex) => {
     const { rowIndex, colIndex } = currentPosition
     const neighbours = getNeighbouringSquares(rowIndex, colIndex, gridSize)
+    let canMove = false
     setGameState(prevState => {
       // Deep clone the previous state
       const newGameState = prevState.map(rowArr =>
@@ -48,10 +69,16 @@ const GameBoard = forwardRef((props, ref) => {
             colIndex: col
           }
           newGameState[rowIndex][colIndex].tileProps = null
+          canMove = true
           break
         }
       }
-      setNumberOfMoves(numberOfMoves => numberOfMoves+1)
+      if (canMove) {
+        setNumberOfMoves(numberOfMoves => numberOfMoves+1)
+        playClickSound()
+      } else {
+        triggerErrorBuzz()
+      }    
       return newGameState
     })    
   }  
@@ -301,6 +328,7 @@ const GameBoard = forwardRef((props, ref) => {
   const onHandleRecordScore = async (userName) => {
     const scoreBoard = await getData('scoreBoard') ?? []
     const scoreBoardEntry = {
+      date: dayjs().format('DD-MMM-YYYY'),
       userName: userName,
       gridSize: gridSize,
       time: gameTimer,
@@ -316,7 +344,7 @@ const GameBoard = forwardRef((props, ref) => {
       await createTiles()
     } else {
       setImageTiles([])
-    }    
+    }     
     setGamePhase('preparing')    
   }
 
@@ -336,6 +364,7 @@ const GameBoard = forwardRef((props, ref) => {
 
   useEffect(() => {
     if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {      
+      playVictoryFanfare()    
       setHasStarted(false)
       clearInterval(timerInterval)
       setTimerInterval(null)
@@ -428,7 +457,12 @@ const GameBoard = forwardRef((props, ref) => {
                     
         </ScrollView>
         <ScrollView>          
-          <GameWinnerDialog showMe={showWinnerDialog} handleCloseMe={onHandleCloseWinnerDialog} handleRecordScore={onHandleRecordScore}></GameWinnerDialog>
+          <GameWinnerDialog 
+          showMe={showWinnerDialog}
+          moves={numberOfMoves}
+          time={gameTimer}
+          handleCloseMe={onHandleCloseWinnerDialog} 
+          handleRecordScore={onHandleRecordScore}></GameWinnerDialog>
         </ScrollView>
       </ScrollView>
       
