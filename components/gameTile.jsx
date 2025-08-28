@@ -69,14 +69,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     position: 'relative',
     borderWidth: 1,
-    borderTopColor: '#ffffff',      // light top edge
-    borderLeftColor: '#ffffff',     // light left edge
-    borderBottomColor: '#414141ff',   // darker bottom edge
-    borderRightColor: '#414141ff',    // darker right edge
-    shadowColor: '#000',
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3, // for Android      
+    borderTopColor: '#7c7c7cff',      // light top edge
+    borderLeftColor: '#7c7c7cff',     // light left edge
+    borderBottomColor: '#1f1f1fff',   // darker bottom edge
+    borderRightColor: '#1f1f1fff',    // darker right edge
+    // shadowColor: '#000',
+    // shadowOffset: { width: 1, height: 1 },
+    // shadowOpacity: 0.3,
+    // shadowRadius: 2,
+    // elevation: 3, // for Android      
   }
 })

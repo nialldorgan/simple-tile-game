@@ -37,7 +37,7 @@ const GameWinnerDialog = ({showMe, moves, time, handleCloseMe, handleRecordScore
                 <View style={{ flexDirection: 'column', alignItems: 'center', width: '100%'}}>                  
                   <Text variant='headlineLarge' style={styles.textHeader}>{config.winnerDialogTiles[choice].line1}</Text>
                   <Text variant='headlineMedium' style={styles.textHeader}>{config.winnerDialogTiles[choice].line2}</Text>
-                  <Text variant='headlineSmall' style={styles.textHeader}>{`${moves} moves in ${time} seconds`}</Text>
+                  <Text variant='headlineSmall' style={styles.textHeader}>{`You made the top ten! ${moves} moves in ${time} seconds`}</Text>
                 </View>
               </Dialog.Title>
                 

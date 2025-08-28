@@ -1,22 +1,43 @@
 import GameGrid from '@/components/gameGrid'
 import config from '../config.json' with { type: "json" }
 import { View, ScrollView, StyleSheet, Dimensions, Platform, StatusBar } from 'react-native'
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import Big from 'big.js'
 import { Button, Menu, Divider, Text, TextInput, TextInputIcon } from 'react-native-paper'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import GameWinnerDialog from '@/components/gameWinnerDialog'
+import NotTopTenWinner from '@/components/notTopTenWinner'
 import { useReusableFunctions } from '@/hooks/reusableFunctions'
 import { useAudioPlayer } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
 import dayjs from 'dayjs'
+import { useFocusEffect } from 'expo-router'
+
 
 
 const GameBoard = forwardRef((props, ref) => {
   const clickPlayer = useAudioPlayer(require('@/assets/sounds/slide.mp3'))
   const vistoryPlayer = useAudioPlayer(require('@/assets/sounds/fanfare.mp3'))
+
+  const { storeData, getData } = useReusableFunctions()
+  const [ scoreBoard, setScoreBoard ] = React.useState([])
+
+  useFocusEffect(
+    React.useCallback(() => {      
+      const loadScoresAsync = async () => {
+        try {
+          const scores = await getData('scoreBoard')
+          setScoreBoard(scores? scores: [])
+        }
+        catch (e) {
+          console.log(e)
+        }
+      }
+      loadScoresAsync()
+    }, [])
+  )  
 
   const getNeighbouringSquares = (row, col, gridSize) => {
     const neighbours = []
@@ -144,7 +165,7 @@ const GameBoard = forwardRef((props, ref) => {
 
   const calculateTileSize = () => {
     const widthHeight = Big(boardSize)
-    const border = Big(10).times(2).plus(1.5)
+    const border = Big(8)
     const gameSpace = widthHeight.minus(border)
     return gameSpace.div(gridSize).toNumber()
   }
@@ -236,9 +257,7 @@ const GameBoard = forwardRef((props, ref) => {
     } else {
       setImageTiles([])
     }
-  }  
-
-  const {storeData, getData } = useReusableFunctions()  
+  }   
 
   const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
   const [ gridSize, setGridSize ] = useState(config.defaultGridSize)
@@ -253,6 +272,17 @@ const GameBoard = forwardRef((props, ref) => {
   const [ gameTimer, setGameTimer ] = useState(0)
   const [ timerInterval, setTimerInterval ] = useState(0)
   const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
+  const [ showNotTopTenWinnerDialog, setShowNotTopTenWinnerDialog ] = useState(false)
+
+  const filterScoresByGridSize = React.useMemo(() => {
+    return scoreBoard.filter(score => score.gridSize === gridSize)
+      .sort((a, b) => {
+        if (a.moves !== b.moves) {
+          return a.moves - b.moves
+        }
+        return a.time - b.time        
+      })
+  }, [scoreBoard, gridSize])
 
   const openMenu = (menu) => {
     if (menu === 'grid') {
@@ -323,6 +353,34 @@ const GameBoard = forwardRef((props, ref) => {
 
   const onHandleCloseWinnerDialog = () => {
     setShowWinnerDialog(false)
+    setShowNotTopTenWinnerDialog(false)
+  }
+
+  const loadAndTrimScores = async () => {
+    const scores = await getData('scoreBoard') ?? []
+
+    // Group scores by gridSize
+    const grouped = {}
+    scores.forEach(score => {
+      const key = String(score.gridSize)
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(score)
+    })
+
+    // Sort and trim each group to top 10
+    const topScores = []
+    Object.keys(grouped).forEach(gridSize => {
+      const sorted = grouped[gridSize].sort((a, b) => {
+        if (a.moves !== b.moves) {
+          return a.moves - b.moves
+        }
+        return a.time - b.time
+      })
+      topScores.push(...sorted.slice(0, 10))
+    })
+
+    // Save trimmed scores back to AsyncStorage
+    await storeData(topScores, 'scoreBoard')
   }
 
   const onHandleRecordScore = async (userName) => {
@@ -336,6 +394,7 @@ const GameBoard = forwardRef((props, ref) => {
     }
     scoreBoard.push(scoreBoardEntry)
     await storeData(scoreBoard, 'scoreBoard')
+    await loadAndTrimScores()
     setShowWinnerDialog(false)
   }
   
@@ -363,12 +422,20 @@ const GameBoard = forwardRef((props, ref) => {
   }, [gamePhase])
 
   useEffect(() => {
-    if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {      
-      playVictoryFanfare()    
+    if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
+      const isTopTen = filterScoresByGridSize.length < 10 ||
+        filterScoresByGridSize.some(score => score.moves > numberOfMoves)
+
+      playVictoryFanfare()
       setHasStarted(false)
       clearInterval(timerInterval)
       setTimerInterval(null)
-      setShowWinnerDialog(true)     
+
+      if (isTopTen) {
+        setShowWinnerDialog(true)
+      } else {
+        setShowNotTopTenWinnerDialog(true)
+      }
     }
   }, [gameState])
 
@@ -421,9 +488,9 @@ const GameBoard = forwardRef((props, ref) => {
   }))
   
   return (
-      <ScrollView id={'gameBoard'} style={{flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>        
+      <View id={'gameBoard'} style={{flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>        
         <View style={styles.gameControlArea} id={'gameControlArea'}>
-          <View style={{marginBottom: 8, marginTop: 8, flexDirection: 'row', alignContent: 'center', justifyContent: 'space-between', alignItems: 'center'}}> 
+          <View style={styles.gameControls}> 
             <TextInput style={{width: "40%", marginRight: 16}}
             value={String(gameTimer)}
             mode="outlined" left={<TextInput.Icon icon="timer-outline"></TextInput.Icon>}></TextInput>        
@@ -452,19 +519,23 @@ const GameBoard = forwardRef((props, ref) => {
               <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text>
           </View>              
         </View>          
-        <ScrollView horizontal={true} style={{flexGrow:0}}>
-          <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>
-                    
-        </ScrollView>
-        <ScrollView>          
+        <View style={{flexGrow:0}}>
+          <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>                    
+        </View>
+        <View>          
           <GameWinnerDialog 
           showMe={showWinnerDialog}
           moves={numberOfMoves}
           time={gameTimer}
           handleCloseMe={onHandleCloseWinnerDialog} 
           handleRecordScore={onHandleRecordScore}></GameWinnerDialog>
-        </ScrollView>
-      </ScrollView>
+          <NotTopTenWinner 
+          showMe={showNotTopTenWinnerDialog}
+          moves={numberOfMoves}
+          time={gameTimer}
+          handleCloseMe={onHandleCloseWinnerDialog}></NotTopTenWinner>
+        </View>
+      </View>
       
   )
 })
@@ -472,9 +543,6 @@ const GameBoard = forwardRef((props, ref) => {
 export default GameBoard
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    // backgroundColor: '#25292e49',      
-  },
 
   defaultText: {
     color: '#ffffff'
@@ -489,4 +557,15 @@ const styles = StyleSheet.create({
   gameControlArea: {
     flexDirection: 'column'
   },
+
+  gameControls: {
+    marginBottom: 15, 
+    marginTop: 10, 
+    marginLeft: 10,
+    marginRight: 10,
+    flexDirection: 'row', 
+    alignContent: 'center', 
+    justifyContent: 'space-between', 
+    alignItems: 'center'
+  }
 })

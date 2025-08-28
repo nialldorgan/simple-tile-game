@@ -36,10 +36,10 @@ const ScoreBoard = () => {
   const filterScoresByGridSize = React.useMemo(() => {
     return scoreBoard.filter(score => score.gridSize === filterByGrid)
       .sort((a, b) => {
-        if (a.time !== b.time) {
-          return a.time - b.time
+        if (a.moves !== b.moves) {
+          return a.moves - b.moves
         }
-        return a.moves - b.moves
+        return a.time - b.time        
       })
   }, [scoreBoard, filterByGrid])
 
@@ -62,6 +62,10 @@ const ScoreBoard = () => {
           source={require('@/assets/images/simple-tile-puzzle-background.png')} 
           style={styles.background}>
             <ScrollView style={{width: '100%', flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>
+              <View style={{margin: 15, padding: 10}}>
+                <Text variant='headlineMedium' style={styles.textHeader}>Slider Challenge</Text>
+                <Text variant='headlineMedium' style={styles.textHeader}>Leaderboard</Text>
+              </View>
               <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '95%', marginLeft: 5, marginRight: 5}}>
                 { gridOptions.map(option => (
                   <Button 
@@ -135,6 +139,15 @@ const styles = StyleSheet.create({
   tableHeader: {
     fontSize: 10,
     fontWeight: 900
+  },
+
+  textHeader: {
+    color: '#faee43', 
+    textAlign: 'center',
+    fontWeight: 900,                   
+    textShadowColor: '#b08648', 
+    textShadowOffset: {width: 3, height: 3}, 
+    textShadowRadius: 5
   }
 })
 

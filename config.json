@@ -79,5 +79,20 @@
             "line1": "Cue the confetti!",
             "line2": "You nailed it!"
         }
+    ],
+    "notTopTenWinners":[
+        { "line1": "Well... you won.", "line2": "But did you *really* win?" },
+        { "line1": "Nice try!", "line2": "Now go chase that leaderboard." },
+        { "line1": "Victory-ish", "line2": "Top ten or bust!" },
+        { "line1": "You did it!", "line2": "Just not impressively." },
+        { "line1": "Almost glorious", "line2": "Try again, champ." },
+        { "line1": "You win!", "line2": "But the leaderboard remains unimpressed." },
+        { "line1": "Solid effort", "line2": "Now go make it legendary." },
+        { "line1": "You beat the game", "line2": "Now beat the *best*." },
+        { "line1": "Victory unlocked", "line2": "Leaderboard still locked." },
+        { "line1": "You’re good", "line2": "But are you top-ten good?" },
+        { "line1": "Respectable win", "line2": "But we both know you can do better." },
+        { "line1": "You made it!", "line2": "Just not to the hall of fame." }
     ]
+
 }

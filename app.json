@@ -1,22 +1,33 @@
 {
   "expo": {
-    "name": "simple-tile-game",
+    "name": "Slider Challenge",
     "slug": "simple-tile-game",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/slider-icon.png",
     "scheme": "simpletilegame",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.palmTreeSoftware.sliderChallenge",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/slider-icon.png",
         "backgroundColor": "#25292e"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.eos_espo_nd.sliderChallenge"
     },
     "web": {
       "bundler": "metro",
@@ -28,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/slider-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#25292e"
@@ -44,6 +55,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0e83c39e-1f0f-427b-9171-a4d631697a8b"
+      }
+    },
+    "owner": "eos_espo_nd",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0e83c39e-1f0f-427b-9171-a4d631697a8b"
     }
   }
 }

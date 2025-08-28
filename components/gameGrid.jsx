@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   },
   gameBoardMiddleBorder: {
     borderColor: '#6b6b6bff',
-    borderWidth: 8
+    borderWidth: 4
   },
   gameInsideBoard: {    
     borderBottomColor: '#ffffff',      // light top edge

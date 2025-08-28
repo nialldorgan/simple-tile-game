@@ -1,1 +1,1 @@
-# simple-tile-game
+# slider-challenge
