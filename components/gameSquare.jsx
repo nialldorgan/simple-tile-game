@@ -11,12 +11,14 @@ type Props = {
 
 export default function GameSquare ({ colIndex, rowIndex, hasTile, squareMinWidth, tileProps = null}: Props) {
   if (hasTile && tileProps) {
-    const { background, textColor, size, label, img, homePosition, currentPosition, handleTileClick } = tileProps
+    const { background, textColor, size, label, img, homePosition, currentPosition, handleTileClick, isShuffled } = tileProps
     return (
       <View>
         <GameTile background={background} textColor={textColor} 
         size={size} label={label} img={img} homePosition={homePosition} 
-        currentPosition={currentPosition} handleTileClick={handleTileClick}></GameTile>
+        currentPosition={currentPosition} 
+        isShuffled={isShuffled}
+        handleTileClick={handleTileClick}></GameTile>
       </View>
     )   
   }

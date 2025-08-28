@@ -9,65 +9,194 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import GameWinnerDialog from '@/components/gameWinnerDialog'
 import NotTopTenWinner from '@/components/notTopTenWinner'
-import { useReusableFunctions } from '@/hooks/reusableFunctions'
+import { useReusableFunctions } from '@/hooks/useReusableFunctions'
 import { useAudioPlayer } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
 import dayjs from 'dayjs'
 import { useFocusEffect } from 'expo-router'
+import { useGameStateManager } from '@/hooks/useGameStateManager'
+import { shuffleGameBoard, getNeighbouringSquares } from '@/utils/grid'
+import { chopImageIntoTiles, resizeImage } from '@/utils/images'
 
 
-
+// GameBoard component: main logic for the tile puzzle game board
 const GameBoard = forwardRef((props, ref) => {
+  // Audio players for click and victory sounds
   const clickPlayer = useAudioPlayer(require('@/assets/sounds/slide.mp3'))
   const vistoryPlayer = useAudioPlayer(require('@/assets/sounds/fanfare.mp3'))
 
+  // Custom hooks for storage and game state
   const { storeData, getData } = useReusableFunctions()
   const [ scoreBoard, setScoreBoard ] = React.useState([])
 
-  useFocusEffect(
-    React.useCallback(() => {      
-      const loadScoresAsync = async () => {
-        try {
-          const scores = await getData('scoreBoard')
-          setScoreBoard(scores? scores: [])
-        }
-        catch (e) {
-          console.log(e)
-        }
-      }
-      loadScoresAsync()
-    }, [])
-  )  
+  const { createInitialState, checkForVictory } = useGameStateManager()
 
-  const getNeighbouringSquares = (row, col, gridSize) => {
-    const neighbours = []
-    // Up
-    if (row > 0) neighbours.push({ row: row - 1, col })
-    // Down
-    if (row < gridSize - 1) neighbours.push({ row: row + 1, col })
-    // Left
-    if (col > 0) neighbours.push({ row, col: col - 1 })
-    // Right
-    if (col < gridSize - 1) neighbours.push({ row, col: col + 1 })
-    return neighbours
-  }
+  // Various state variables for game settings and status
+  const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
+  const [ gridSize, setGridSize ] = useState(config.defaultGridSize)
+  const [ gameState, setGameState ] = useState([])
+  const [ hasStarted, setHasStarted ] = useState(false)
+  const [ difficultyLevel, setDifficultyLevel ] = useState(config.difficultyLevels[0].moves)
+  const [ gamePhase, setGamePhase ] = useState('idle') // 'idle', 'resetting', 'shuffling', 'ready'
+  const [ gridOptions, setGridOptions ] = useState(config.gridOptions)
+  const [ difficultyMenu, setDifficultyMenu] = useState(false)
+  const [ gridSizeMenu, setGridSizeMenu ] = useState(false)
+  const [ numberOfMoves, setNumberOfMoves ] = useState(0)
+  const [ gameTimer, setGameTimer ] = useState(0)
+  const [ timerInterval, setTimerInterval ] = useState(0)
+  const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
+  const [ showNotTopTenWinnerDialog, setShowNotTopTenWinnerDialog ] = useState(false)
+  const [isShuffled, setIsShuffled] = useState(false)
 
+  // State for image tiles and selected image
+  const [imageTiles, setImageTiles] = useState([])
+  const [tileImage, setTileImage] = useState(null)
+
+  // Calculate board size based on platform
+  const [ boardSize, setBoardSize ] = useState(() => {
+    return Platform.OS !== 'web'
+      ? Dimensions.get('window').width - 10
+      : 400;
+  })
+
+  // Calculate tile size based on board size and grid size
+  const tileSize = React.useMemo(() => {
+    const widthHeight = Big(boardSize)
+    const border = Big(8)
+    const gameSpace = widthHeight.minus(border)
+    return gameSpace.div(gridSize).toNumber()
+  }, [boardSize, gridSize])  
+
+  
+  // Play click sound
   const playClickSound = () => {    
     clickPlayer.seekTo(0)
     clickPlayer.volume = 0.3
     clickPlayer.play()
   }
 
+  // Play victory sound
   const playVictoryFanfare = () => {
     vistoryPlayer.seekTo(0)
     vistoryPlayer.play()
   }
 
+  // Trigger haptic feedback for error
   const triggerErrorBuzz = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
   
-  const onTilePressed = (homePosition, currentPosition, tileIndex) => {
+  
+  // Pick an image from the device gallery
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1      
+    })
+
+    if (!result.canceled) {
+      // Chop the image and assign it to gameState
+      const image = await resizeImage(result.assets[0].uri, boardSize, boardSize)
+      try {
+        await AsyncStorage.setItem('tile-image', 'data:image/xxx;base64,' + image.base64)
+      } catch (e) {
+        console.log(e)
+      }
+      setTileImage(image.uri)
+      setGamePhase('newImageSelected')
+    }
+  }
+
+  // Create tiles from the selected image
+  const createTiles = async () => {
+    if (tileImage) {
+      const tiles = await chopImageIntoTiles(tileImage, gridSize, tileSize)
+      setImageTiles(tiles)
+    } else {
+      setImageTiles([])
+    }
+  }
+
+  // Filter and sort scores for the current grid size
+  const filterScoresByGridSize = React.useMemo(() => {
+    return scoreBoard.filter(score => score.gridSize === gridSize)
+      .sort((a, b) => {
+        if (a.moves !== b.moves) {
+          return a.moves - b.moves
+        }
+        return a.time - b.time        
+      })
+  }, [scoreBoard, gridSize])
+
+  // Trim scores to top 10 for each grid size and save
+  const loadAndTrimScores = async () => {
+    const scores = await getData('scoreBoard') ?? []
+
+    // Group scores by gridSize
+    const grouped = {}
+    scores.forEach(score => {
+      const key = String(score.gridSize)
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(score)
+    })
+
+    // Sort and trim each group to top 10
+    const topScores = []
+    Object.keys(grouped).forEach(gridSize => {
+      const sorted = grouped[gridSize].sort((a, b) => {
+        if (a.moves !== b.moves) {
+          return a.moves - b.moves
+        }
+        return a.time - b.time
+      })
+      topScores.push(...sorted.slice(0, 10))
+    })
+
+    // Save trimmed scores back to AsyncStorage
+    await storeData(topScores, 'scoreBoard')
+  }
+
+  // Open/close menu handlers
+  const openMenu = (menu) => {
+    if (menu === 'grid') {
+      setGridSizeMenu(true)
+    } else {
+      setDifficultyMenu(true)
+    }
+  }
+
+  const closeMenu = (menu) => {
+    if (menu === 'grid') {
+      setGridSizeMenu(false)
+    } else {
+      setDifficultyMenu(false)
+    }
+  }
+
+  // Reset the board, optionally with a new image
+  const resetBoard = async function () {
+    if (tileImage) {
+      await createTiles()
+    } else {
+      setImageTiles([])
+    }     
+    setGamePhase('preparing')    
+  }
+
+  // Start a new game
+  const newGame = function () {    
+    setHasStarted(false)
+    timerInterval? clearInterval(timerInterval) : null      
+    setTimerInterval(null)
+    setGameTimer(0)
+    setGamePhase('resetting')
+  }
+
+  // Handle tile press: move tile if possible, play sound or haptic
+  const onTilePressed = React.useCallback((homePosition, currentPosition, tileIndex) => {
     const { rowIndex, colIndex } = currentPosition
     const neighbours = getNeighbouringSquares(rowIndex, colIndex, gridSize)
     let canMove = false
@@ -102,11 +231,60 @@ const GameBoard = forwardRef((props, ref) => {
       }    
       return newGameState
     })    
-  }  
+  }, [gridSize])
 
-  const [imageTiles, setImageTiles] = useState([])
-  const [tileImage, setTileImage] = useState(null)
+  // Close winner dialogs
+  const onHandleCloseWinnerDialog = () => {
+    setShowWinnerDialog(false)
+    setShowNotTopTenWinnerDialog(false)
+  }
 
+  // Record a new score and update storage
+  const onHandleRecordScore = async (userName) => {
+    const scoreBoard = await getData('scoreBoard') ?? []
+    const scoreBoardEntry = {
+      date: dayjs().format('DD-MMM-YYYY'),
+      userName: userName,
+      gridSize: gridSize,
+      time: gameTimer,
+      moves: numberOfMoves
+    }
+    scoreBoard.push(scoreBoardEntry)
+    await storeData(scoreBoard, 'scoreBoard')
+    await loadAndTrimScores()
+    setShowWinnerDialog(false)
+  }
+
+  // Load scores when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {      
+      const loadScoresAsync = async () => {
+        try {
+          const scores = await getData('scoreBoard')
+          setScoreBoard(scores? scores: [])
+        }
+        catch (e) {
+          console.log(e)
+        }
+      }
+      loadScoresAsync()
+    }, [])
+  )
+
+  // Recreate board when grid size, image, or color changes
+  useEffect(() => {
+    const initialState = createInitialState(
+      gridSize,
+      tileSize,
+      imageTiles,
+      tileColor,
+      onTilePressed,
+      isShuffled
+    );
+    setGameState(initialState)
+  }, [gridSize, imageTiles, tileColor])
+
+  // Load tile image from storage on mount
   useEffect(() => {
     const fetchTileImage = async () => {
       try {
@@ -123,304 +301,14 @@ const GameBoard = forwardRef((props, ref) => {
     fetchTileImage()
   }, [])
 
-  const fillGameBoardGridSquares = () => {
-    
-    return Array.from({ length: gridSize }, (v, i) =>
-      Array.from({ length: gridSize }, (v, y) => {
-        const isEmpty = i === gridSize-1 && y === gridSize-1
-        const index = (i * gridSize + y)
-        const tileLabel = `${index + 1}`
-        const tile = imageTiles && imageTiles.length ? imageTiles[index] : null
-        
-        return {
-          rowIndex: i,
-          colIndex: y,
-          hasTile: !isEmpty,
-          squareMinWidth: calculateTileSize(),
-          tileProps: isEmpty
-            ? null
-            : {
-                background: tileColor,
-                textColor: '#ffffffff',
-                size: calculateTileSize(),
-                label: `${tileLabel}`,
-                img: tile? tile.uri: null,
-                homePosition: { rowIndex: i, colIndex: y },
-                currentPosition: { rowIndex: i, colIndex: y },
-                handleTileClick: onTilePressed,
-              },
-        }
-      })
-    )
-  }
-
-  const calculateWindowSize = () => {
-    if (Platform.OS !== 'web') {
-      return Dimensions.get('window').width-10
-    }
-    return 400
-  }
-
-  const [ boardSize, setBoardSize ] = useState(calculateWindowSize)
-
-  const calculateTileSize = () => {
-    const widthHeight = Big(boardSize)
-    const border = Big(8)
-    const gameSpace = widthHeight.minus(border)
-    return gameSpace.div(gridSize).toNumber()
-  }
-
-  
-
-  const checkForVictory = function () {
-    let winner = true
-    gameState.forEach(rowArr => {
-      rowArr.forEach(square => {
-        if (square.hasTile) {
-          if (JSON.stringify(square.tileProps.homePosition) !== JSON.stringify(square.tileProps.currentPosition)) {
-            winner = false
-          }        
-        }
-      })
-    })    
-    return winner
-  }
-
-  const chopImageIntoTiles = async (imageUri, gridSize, tileSize) => {
-    const tiles = [];
-
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const cropRegion = {
-          originX: col * tileSize,
-          originY: row * tileSize,
-          width: tileSize,
-          height: tileSize,
-        };
-
-        const cropped = await ImageManipulator.manipulateAsync(
-          imageUri,
-          [{ crop: cropRegion }],
-          { compress: 1, format: ImageManipulator.SaveFormat.PNG }
-        );
-
-        tiles.push({
-          uri: cropped.uri,
-          row,
-          col,
-          index: row * gridSize + col,
-        });
-      }
-    }
-
-    return tiles;
-  }
-
-  const resizeImage = async (uri, targetWidth, targetHeight) => {
-    const resizedImage = await ImageManipulator.manipulateAsync(
-      uri,
-      [{resize: {
-        height: targetHeight,
-        width: targetWidth
-      }}],
-      { compress: 1, format: ImageManipulator.SaveFormat.PNG, base64: true }
-    )
-    return resizedImage
-  }
-  
-  const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1      
-    })
-
-    if (!result.canceled) {
-      //chop the image and assign it to gameState
-      const image = await resizeImage(result.assets[0].uri, boardSize, boardSize)
-      try {
-        await AsyncStorage.setItem('tile-image', 'data:image/xxx;base64,' + image.base64)
-      } catch (e) {
-        console.log(e)
-      }
-      setTileImage(image.uri)
-      setGamePhase('newImageSelected')
-    }
-  }
-
-  const createTiles = async () => {
-    if (tileImage) {
-      const tiles = await chopImageIntoTiles(tileImage, gridSize, calculateTileSize())
-      setImageTiles(tiles)
-    } else {
-      setImageTiles([])
-    }
-  }   
-
-  const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
-  const [ gridSize, setGridSize ] = useState(config.defaultGridSize)
-  const [ gameState, setGameState ] = useState(fillGameBoardGridSquares)
-  const [ hasStarted, setHasStarted ] = useState(false)
-  const [ difficultyLevel, setDifficultyLevel ] = useState(config.difficultyLevels[0].moves)
-  const [ gamePhase, setGamePhase ] = useState('idle') // 'idle', 'resetting', 'shuffling', 'ready'
-  const [ gridOptions, setGridOptions ] = useState(config.gridOptions)
-  const [ difficultyMenu, setDifficultyMenu] = useState(false)
-  const [ gridSizeMenu, setGridSizeMenu ] = useState(false)
-  const [ numberOfMoves, setNumberOfMoves ] = useState(0)
-  const [ gameTimer, setGameTimer ] = useState(0)
-  const [ timerInterval, setTimerInterval ] = useState(0)
-  const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
-  const [ showNotTopTenWinnerDialog, setShowNotTopTenWinnerDialog ] = useState(false)
-
-  const filterScoresByGridSize = React.useMemo(() => {
-    return scoreBoard.filter(score => score.gridSize === gridSize)
-      .sort((a, b) => {
-        if (a.moves !== b.moves) {
-          return a.moves - b.moves
-        }
-        return a.time - b.time        
-      })
-  }, [scoreBoard, gridSize])
-
-  const openMenu = (menu) => {
-    if (menu === 'grid') {
-      setGridSizeMenu(true)
-    } else {
-      setDifficultyMenu(true)
-    }
-  }
-
-  const closeMenu = (menu) => {
-    if (menu === 'grid') {
-      setGridSizeMenu(false)
-    } else {
-      setDifficultyMenu(false)
-    }
-  }
-  
-
-  const shuffleGameBoard = function () {
-    let moves = difficultyLevel*gridSize
-    const empty = { rowIndex: gridSize-1, colIndex: gridSize-1 }
-    const prevSquare = { rowIndex: gridSize-1, colIndex: gridSize-1 } 
-    let p = Promise.resolve()
-          
-    for (let i=0; i<moves; i++) {
-      p = p.then(() => new Promise(resolve => setTimeout(resolve, 20)))
-        .then(() => {
-
-          setGameState(prevState => {
-            const newGameState = prevState.map(rowArr =>
-              rowArr.map(cell => ({
-                ...cell,
-                tileProps: cell.tileProps ? { ...cell.tileProps } : null
-              }))
-            )
-            const getValidNeighbours = (empty, prev) => {
-              return getNeighbouringSquares(empty.rowIndex, empty.colIndex, gridSize).filter(neighbour => {
-                return !(neighbour.rowIndex === empty.rowIndex && neighbour.colIndex === empty.colIndex)
-              })
-            }
-
-            const neighbours = getValidNeighbours(empty, prevSquare)
-
-
-            prevSquare.rowIndex = empty.rowIndex
-            prevSquare.colIndex = empty.colIndex
-            const swapIndex = Math.floor(Math.random() * neighbours.length)
-            const { row, col } = neighbours[swapIndex]
-            
-            newGameState[empty.rowIndex][empty.colIndex].hasTile = true
-            newGameState[row][col].hasTile = false
-            newGameState[empty.rowIndex][empty.colIndex].tileProps = newGameState[row][col].tileProps
-            newGameState[empty.rowIndex][empty.colIndex].tileProps.currentPosition = {
-              rowIndex: empty.rowIndex,
-              colIndex: empty.colIndex
-            }
-            newGameState[row][col].tileProps = null
-            empty.rowIndex = row
-            empty.colIndex = col
-
-            return newGameState
-
-          })
-      })
-    }
-    return p
-  }
-
-  const onHandleCloseWinnerDialog = () => {
-    setShowWinnerDialog(false)
-    setShowNotTopTenWinnerDialog(false)
-  }
-
-  const loadAndTrimScores = async () => {
-    const scores = await getData('scoreBoard') ?? []
-
-    // Group scores by gridSize
-    const grouped = {}
-    scores.forEach(score => {
-      const key = String(score.gridSize)
-      if (!grouped[key]) grouped[key] = []
-      grouped[key].push(score)
-    })
-
-    // Sort and trim each group to top 10
-    const topScores = []
-    Object.keys(grouped).forEach(gridSize => {
-      const sorted = grouped[gridSize].sort((a, b) => {
-        if (a.moves !== b.moves) {
-          return a.moves - b.moves
-        }
-        return a.time - b.time
-      })
-      topScores.push(...sorted.slice(0, 10))
-    })
-
-    // Save trimmed scores back to AsyncStorage
-    await storeData(topScores, 'scoreBoard')
-  }
-
-  const onHandleRecordScore = async (userName) => {
-    const scoreBoard = await getData('scoreBoard') ?? []
-    const scoreBoardEntry = {
-      date: dayjs().format('DD-MMM-YYYY'),
-      userName: userName,
-      gridSize: gridSize,
-      time: gameTimer,
-      moves: numberOfMoves
-    }
-    scoreBoard.push(scoreBoardEntry)
-    await storeData(scoreBoard, 'scoreBoard')
-    await loadAndTrimScores()
-    setShowWinnerDialog(false)
-  }
-  
-  const resetBoard = async function () {
-    if (tileImage) {
-      await createTiles()
-    } else {
-      setImageTiles([])
-    }     
-    setGamePhase('preparing')    
-  }
-
-  const newGame = function () {    
-    setHasStarted(false)
-    timerInterval? clearInterval(timerInterval) : null      
-    setTimerInterval(null)
-    setGameTimer(0)
-    setGamePhase('resetting')
-  }
-
+  // React to game phase changes
   useEffect(() => {
     if (gamePhase === 'gridSizeChanged' || gamePhase === 'newImageSelected') {
       resetBoard()
     }
   }, [gamePhase])
 
+  // Check for victory when game state changes
   useEffect(() => {
     if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
       const isTopTen = filterScoresByGridSize.length < 10 ||
@@ -439,10 +327,11 @@ const GameBoard = forwardRef((props, ref) => {
     }
   }, [gameState])
 
+  // Prepare the board for a new game
   useEffect(() => {
     if (gamePhase === 'preparing') {
       setHasStarted(false)
-      const newBoard = fillGameBoardGridSquares()
+      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed, isShuffled)
       setGameState(newBoard)
       setGamePhase('idle')
       timerInterval? clearInterval(timerInterval) : null      
@@ -452,34 +341,42 @@ const GameBoard = forwardRef((props, ref) => {
     }
   }, [gamePhase])
 
+  // Reset the board and shuffle tiles
   useEffect(() => {
     if (gamePhase === 'resetting') {
-      const newBoard = fillGameBoardGridSquares()
+      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed, isShuffled)
       setGameState(newBoard)
       setGamePhase('shuffling')
     }
   }, [gamePhase])
 
+  // Shuffle the board for a new game
   useEffect(() => {
     if (gamePhase === 'shuffling') {
-      shuffleGameBoard().then(() => {
-        setGamePhase('ready')
-      })
+      const newGameState = shuffleGameBoard(gameState, difficultyLevel, gridSize)
+      setIsShuffled(true)
+      setGameState(newGameState)
+      setGamePhase('ready')
+      setTimeout(() => {
+        setIsShuffled(false)
+      }, 300);
     }
   }, [gamePhase])
 
+  // Start the timer and game when ready
   useEffect(() => {
     if (gamePhase === 'ready') {
       setHasStarted(true)
       setGamePhase('idle') // reset phase tracker
       setNumberOfMoves(0)
-      setGameTimer(0)
+      setGameTimer(0)      
       setTimerInterval(setInterval(() => {
         setGameTimer(gameTimer => gameTimer+1)
       }, 1000))
     }
   }, [gamePhase])
 
+  // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     newGame,
     pickImage,
@@ -487,6 +384,7 @@ const GameBoard = forwardRef((props, ref) => {
     // expose other methods if needed
   }))
   
+  // Render the game board UI
   return (
       <View id={'gameBoard'} style={{flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>        
         <View style={styles.gameControlArea} id={'gameControlArea'}>

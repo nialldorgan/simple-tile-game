@@ -7,7 +7,7 @@
         }
     ],
     "defaultTileProfile" : {
-        "color": "hsla(300, 96%, 28%, 1.00)",
+        "color": "hsla(300, 96%, 28%, 0)",
         "displayIndex": true,
         "img": null
     },

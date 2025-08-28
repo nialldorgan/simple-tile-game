@@ -5,7 +5,7 @@ import { PaperProvider } from 'react-native-paper'
 import { DataTable, Text, Button } from 'react-native-paper'
 import { ImageBackground } from 'expo-image'
 import { useFocusEffect } from 'expo-router'
-import { useReusableFunctions } from '@/hooks/reusableFunctions'
+import { useReusableFunctions } from '@/hooks/useReusableFunctions'
 import ClearScoresDialog from '@/components/clearScoresDialog'
 import config from '../../config.json' with { type: "json" }
 

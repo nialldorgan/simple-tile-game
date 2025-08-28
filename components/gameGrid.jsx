@@ -21,7 +21,12 @@ export default function GameGrid ({ gameState, tileColor, boardSize }: Props) {
                 <View style={styles.rows} key={index}>
                   { row.map(col => (
                     <View key={col.tileProps? col.tileProps.label: `emptySquare`}>
-                      <GameSquare colIndex={col.colIndex} rowIndex={col.rowIndex} hasTile={col.hasTile} tileProps={col.tileProps} squareMinWidth={col.squareMinWidth}></GameSquare>
+                      <GameSquare 
+                      colIndex={col.colIndex} 
+                      rowIndex={col.rowIndex} 
+                      hasTile={col.hasTile} 
+                      tileProps={col.tileProps} 
+                      squareMinWidth={col.squareMinWidth}></GameSquare>
                     </View>
                   ))}
                 </View>
