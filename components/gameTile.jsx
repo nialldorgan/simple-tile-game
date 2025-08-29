@@ -16,23 +16,28 @@ export type TileProps = {
     rowIndex: number,
     colIndex: number
   },
-  isShuffled: boolean,
-  handleTileClick?: () => void
+  handleTileClick?: () => void,
+  showShuffleAnimation: boolean
 } 
 
 export function GameTile ({background = '#868686ff', textColor = '#black', size = 30, label = null, 
-  img = null, currentPosition = {rowIndex:0, colIndex:0}, homePosition, isShuffled, handleTileClick}: TileProps) {
+  img = null, currentPosition = {rowIndex:0, colIndex:0}, homePosition, handleTileClick, showShuffleAnimation}: TileProps) {
     const [tileIndex, setTileIndex] = useState(parseInt(label))
     const scale = useRef(new Animated.Value(0)).current    
 
     useEffect(() => {
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 5,
-        delay: currentPosition.colIndex * 30,
-        useNativeDriver: true,
-      }).start()        
-    }, [])
+      if (showShuffleAnimation) {
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 5,
+          delay: currentPosition.colIndex * 30,
+          useNativeDriver: true,
+        }).start()
+      } else {
+        scale.setValue(1)
+      }
+                
+    }, [showShuffleAnimation])
     
     return (     
         

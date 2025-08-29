@@ -33,7 +33,7 @@ const GameBoard = forwardRef((props, ref) => {
 
   // Various state variables for game settings and status
   const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
-  const [ gridSize, setGridSize ] = useState(config.defaultGridSize)
+  const [ gridSize, setGridSize ] = useState(4)
   const [ gameState, setGameState ] = useState([])
   const [ hasStarted, setHasStarted ] = useState(false)
   const [ difficultyLevel, setDifficultyLevel ] = useState(config.difficultyLevels[0].moves)
@@ -46,7 +46,9 @@ const GameBoard = forwardRef((props, ref) => {
   const [ timerInterval, setTimerInterval ] = useState(0)
   const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
   const [ showNotTopTenWinnerDialog, setShowNotTopTenWinnerDialog ] = useState(false)
-  const [isShuffled, setIsShuffled] = useState(false)
+  const [ showShuffleAnimation, setShowShuffleAnimation ] = useState(false)
+  const [ isSoundEnabled, setIsSoundEnabled ] = useState(true)
+  const [ scoreOptions, setScoreOptions ] = useState()
 
   // State for image tiles and selected image
   const [imageTiles, setImageTiles] = useState([])
@@ -110,6 +112,16 @@ const GameBoard = forwardRef((props, ref) => {
     }
   }
 
+  const removeImage = async () => {
+    try {
+      await AsyncStorage.removeItem('tile-image')
+      setTileImage(null)
+      setGamePhase('newImageSelected')
+    } catch (e) {
+      console.log(e)
+    }
+  }
+
   // Create tiles from the selected image
   const createTiles = async () => {
     if (tileImage) {
@@ -124,10 +136,15 @@ const GameBoard = forwardRef((props, ref) => {
   const filterScoresByGridSize = React.useMemo(() => {
     return scoreBoard.filter(score => score.gridSize === gridSize)
       .sort((a, b) => {
-        if (a.moves !== b.moves) {
-          return a.moves - b.moves
+        // Sort scores by the selected primary option (moves or time), then by the secondary option
+        const primary = scoreOptions === 'moves' ? 'moves' : 'time'
+        const secondary = scoreOptions === 'moves' ? 'time' : 'moves'
+        if (a[primary] !== b[primary]) {
+          // If primary values differ, sort by primary (ascending)
+          return a[primary] - b[primary]
         }
-        return a.time - b.time        
+        // If primary values are equal, sort by secondary (ascending)
+        return a[secondary] - b[secondary]
       })
   }, [scoreBoard, gridSize])
 
@@ -178,6 +195,7 @@ const GameBoard = forwardRef((props, ref) => {
 
   // Reset the board, optionally with a new image
   const resetBoard = async function () {
+    setShowShuffleAnimation(true)
     if (tileImage) {
       await createTiles()
     } else {
@@ -225,13 +243,15 @@ const GameBoard = forwardRef((props, ref) => {
       }
       if (canMove) {
         setNumberOfMoves(numberOfMoves => numberOfMoves+1)
-        playClickSound()
+        if (isSoundEnabled) {
+          playClickSound()
+        }
       } else {
         triggerErrorBuzz()
       }    
       return newGameState
     })    
-  }, [gridSize])
+  }, [gridSize, isSoundEnabled])
 
   // Close winner dialogs
   const onHandleCloseWinnerDialog = () => {
@@ -267,7 +287,21 @@ const GameBoard = forwardRef((props, ref) => {
           console.log(e)
         }
       }
-      loadScoresAsync()
+      const loadGameOptionsAsync = async () => {
+        const gameOptions = await getData('gameOptions')
+        if (gameOptions) {
+          setScoreOptions(gameOptions.scoreOptions)
+          setIsSoundEnabled(gameOptions.soundOptions)
+          setGridSize(gameOptions.defaultGridSize)
+          setGamePhase('gridSizeChanged')
+        } else {
+          setScoreOptions('moves')
+          setIsSoundEnabled(true)
+          setGridSize(config.defaultGridSize)          
+        }
+      }
+      loadGameOptionsAsync()
+      loadScoresAsync()      
     }, [])
   )
 
@@ -278,8 +312,7 @@ const GameBoard = forwardRef((props, ref) => {
       tileSize,
       imageTiles,
       tileColor,
-      onTilePressed,
-      isShuffled
+      onTilePressed
     );
     setGameState(initialState)
   }, [gridSize, imageTiles, tileColor])
@@ -312,9 +345,13 @@ const GameBoard = forwardRef((props, ref) => {
   useEffect(() => {
     if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
       const isTopTen = filterScoresByGridSize.length < 10 ||
-        filterScoresByGridSize.some(score => score.moves > numberOfMoves)
+        scoreOptions === 'moves'? 
+        filterScoresByGridSize.some(score => score.moves > numberOfMoves) : 
+        filterScoresByGridSize.some(score => score.time > gameTimer)
 
-      playVictoryFanfare()
+      if (isSoundEnabled) {
+        playVictoryFanfare()
+      }
       setHasStarted(false)
       clearInterval(timerInterval)
       setTimerInterval(null)
@@ -331,20 +368,24 @@ const GameBoard = forwardRef((props, ref) => {
   useEffect(() => {
     if (gamePhase === 'preparing') {
       setHasStarted(false)
-      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed, isShuffled)
+      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed)
       setGameState(newBoard)
       setGamePhase('idle')
       timerInterval? clearInterval(timerInterval) : null      
       setTimerInterval(null)
       setGameTimer(0)
       setNumberOfMoves(0)
+      setTimeout(() => {
+        setShowShuffleAnimation(false)
+      }, 1000)
     }
   }, [gamePhase])
 
   // Reset the board and shuffle tiles
   useEffect(() => {
     if (gamePhase === 'resetting') {
-      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed, isShuffled)
+      const newBoard = createInitialState(gridSize, tileSize, imageTiles, tileColor, onTilePressed)
+      setShowShuffleAnimation(true)
       setGameState(newBoard)
       setGamePhase('shuffling')
     }
@@ -354,12 +395,8 @@ const GameBoard = forwardRef((props, ref) => {
   useEffect(() => {
     if (gamePhase === 'shuffling') {
       const newGameState = shuffleGameBoard(gameState, difficultyLevel, gridSize)
-      setIsShuffled(true)
       setGameState(newGameState)
       setGamePhase('ready')
-      setTimeout(() => {
-        setIsShuffled(false)
-      }, 300);
     }
   }, [gamePhase])
 
@@ -370,9 +407,12 @@ const GameBoard = forwardRef((props, ref) => {
       setGamePhase('idle') // reset phase tracker
       setNumberOfMoves(0)
       setGameTimer(0)      
-      setTimerInterval(setInterval(() => {
+      setTimerInterval(setInterval(() => {        
         setGameTimer(gameTimer => gameTimer+1)
       }, 1000))
+      setTimeout(() => {
+        setShowShuffleAnimation(false)
+      }, 1000)
     }
   }, [gamePhase])
 
@@ -380,7 +420,8 @@ const GameBoard = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
     newGame,
     pickImage,
-    resetBoard
+    resetBoard,
+    removeImage
     // expose other methods if needed
   }))
   
@@ -389,7 +430,7 @@ const GameBoard = forwardRef((props, ref) => {
       <View id={'gameBoard'} style={{flexGrow: 0, paddingLeft: 5,paddingRight: 5}}>        
         <View style={styles.gameControlArea} id={'gameControlArea'}>
           <View style={styles.gameControls}> 
-            <TextInput style={{width: "40%", marginRight: 16}}
+            <TextInput style={{width: "30%"}}
             value={String(gameTimer)}
             mode="outlined" left={<TextInput.Icon icon="timer-outline"></TextInput.Icon>}></TextInput>        
             <Menu
@@ -414,11 +455,14 @@ const GameBoard = forwardRef((props, ref) => {
                   />
                 ))}
               </Menu>
-              <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text>
+              {/* <Text variant="titleMedium" style={styles.defaultText}>{`Moves: ${numberOfMoves}`}</Text> */}
+              <TextInput style={{width: "30%"}}
+              value={String(numberOfMoves)}
+              mode="outlined" left={<TextInput.Icon icon="gesture-swipe"></TextInput.Icon>}></TextInput>
           </View>              
         </View>          
         <View style={{flexGrow:0}}>
-          <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize}></GameGrid>                    
+          <GameGrid gameState={gameState} tileColor={tileColor} boardSize={boardSize} showShuffleAnimation={showShuffleAnimation}></GameGrid>                    
         </View>
         <View>          
           <GameWinnerDialog 
@@ -459,8 +503,8 @@ const styles = StyleSheet.create({
   gameControls: {
     marginBottom: 15, 
     marginTop: 10, 
-    marginLeft: 10,
-    marginRight: 10,
+    marginLeft: 5,
+    marginRight: 5,
     flexDirection: 'row', 
     alignContent: 'center', 
     justifyContent: 'space-between', 

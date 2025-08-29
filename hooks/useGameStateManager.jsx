@@ -37,7 +37,7 @@
  */
 export const useGameStateManager = () => {
   
-  const createInitialState = (gridSize, tileSize, imageTiles, tileColor, onTilePressed, isShuffled) => {
+  const createInitialState = (gridSize, tileSize, imageTiles, tileColor, onTilePressed) => {
     return Array.from({ length: gridSize }, (v, i) =>
       Array.from({ length: gridSize }, (v, y) => {
         const isEmpty = i === gridSize-1 && y === gridSize-1
@@ -60,8 +60,7 @@ export const useGameStateManager = () => {
                 img: tile? tile.uri: null,
                 homePosition: { rowIndex: i, colIndex: y },
                 currentPosition: { rowIndex: i, colIndex: y },
-                handleTileClick: onTilePressed,
-                isShuffled: isShuffled
+                handleTileClick: onTilePressed
               },
         }
       })

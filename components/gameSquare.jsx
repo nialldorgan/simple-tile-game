@@ -6,19 +6,20 @@ type Props = {
   rowIndex: number,
   hasTile: boolean,
   squareMinWidth: number,
-  tileProps?: object
+  tileProps?: object,
+  showShuffleAnimation: boolean
 }
 
-export default function GameSquare ({ colIndex, rowIndex, hasTile, squareMinWidth, tileProps = null}: Props) {
+export default function GameSquare ({ colIndex, rowIndex, hasTile, squareMinWidth, tileProps = null, showShuffleAnimation}: Props) {
   if (hasTile && tileProps) {
-    const { background, textColor, size, label, img, homePosition, currentPosition, handleTileClick, isShuffled } = tileProps
+    const { background, textColor, size, label, img, homePosition, currentPosition, handleTileClick } = tileProps
     return (
       <View>
         <GameTile background={background} textColor={textColor} 
         size={size} label={label} img={img} homePosition={homePosition} 
         currentPosition={currentPosition} 
-        isShuffled={isShuffled}
-        handleTileClick={handleTileClick}></GameTile>
+        handleTileClick={handleTileClick}
+        showShuffleAnimation={showShuffleAnimation}></GameTile>
       </View>
     )   
   }

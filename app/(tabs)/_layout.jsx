@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import FontAwesome from '@expo/vector-icons/FontAwesome6'
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5'
 
 export default function Layout() {
   return (
@@ -8,12 +8,7 @@ export default function Layout() {
         headerStyle: {
           backgroundColor: '#25292e'
         },
-        headerShown: false,
-        // headerLargeTitle: true,
-        // headerShadowVisible: false,
-        // headerTintColor: '#fff',
-        // headerTitle: 'Slider Challenge',
-        // headerTitleAlign: 'center',
+        headerShown: false,        
         tabBarStyle: {
           color: '#ffffff',
           backgroundColor: '#25292e',
@@ -26,7 +21,7 @@ export default function Layout() {
         name="index"
         options={{          
           tabBarIcon: ({color, size}) => (
-            <FontAwesome name={'house'} size={size} color={color}></FontAwesome>
+            <FontAwesome5 name={'home'} size={size} color={color}></FontAwesome5>
           )
         }}
       />
@@ -36,7 +31,17 @@ export default function Layout() {
         options={{
 
           tabBarIcon: ({color, size}) => (
-            <FontAwesome name={'trophy'} size={size} color={color}></FontAwesome>
+            <FontAwesome5 name={'trophy'} size={size} color={color}></FontAwesome5>
+          )
+        }}
+      />
+
+      <Tabs.Screen
+        name="settings"
+        options={{
+
+          tabBarIcon: ({color, size}) => (
+            <FontAwesome5 name={'cog'} size={size} color={color}></FontAwesome5>
           )
         }}
       />

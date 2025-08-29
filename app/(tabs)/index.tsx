@@ -9,15 +9,23 @@ import { ImageBackground, Image } from 'expo-image'
 
 const Index = () => {
   const gameRef = useRef('')
+
   const handleNewGame = () => {
-    gameRef.current?.newGame();
+    gameRef.current?.newGame()
   }
+
   const handleResetBoard = () => {
-    gameRef.current?.resetBoard();
+    gameRef.current?.resetBoard()
   }
+
   const handlePickImage = () => {
-    gameRef.current?.pickImage();
+    gameRef.current?.pickImage()
   }
+
+  const handleRemoveImage = () => {
+    gameRef.current?.removeImage()
+  }
+
   return (
     <PaperProvider>
       <SafeAreaProvider>
@@ -53,6 +61,12 @@ const Index = () => {
               size={32}
               style={{padding: 8}}
               onPress={handlePickImage}></IconButton>
+              <IconButton
+              icon="image-remove"
+              iconColor="#ffffff"
+              size={32}
+              style={{padding: 8}}
+              onPress={handleRemoveImage}></IconButton>
             </View>
           </ImageBackground>
         </SafeAreaView>

@@ -5,11 +5,12 @@ import GameTile from '@/components/gameTile'
 type Props = {
   gameState: number,
   tileColor: string,
-  boardSize: number
+  boardSize: number,
+  showShuffleAnimation: boolean
 }
 
 
-export default function GameGrid ({ gameState, tileColor, boardSize }: Props) {
+export default function GameGrid ({ gameState, tileColor, boardSize, showShuffleAnimation }: Props) {
 
   return (
     <View style={styles.gameOutsideBoard}>
@@ -26,7 +27,8 @@ export default function GameGrid ({ gameState, tileColor, boardSize }: Props) {
                       rowIndex={col.rowIndex} 
                       hasTile={col.hasTile} 
                       tileProps={col.tileProps} 
-                      squareMinWidth={col.squareMinWidth}></GameSquare>
+                      squareMinWidth={col.squareMinWidth}
+                      showShuffleAnimation={showShuffleAnimation}></GameSquare>
                     </View>
                   ))}
                 </View>

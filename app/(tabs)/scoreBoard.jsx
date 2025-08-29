@@ -14,6 +14,7 @@ const ScoreBoard = () => {
   const [ gridOptions, setGridOptions ] = React.useState(config.gridOptions)
   const [ filterByGrid, setFilterByGrid ] = React.useState(4)
   const [ showClearScoresDialog, setShowClearScoresDialog ] = React.useState(false)
+  const [ scoreOptions, setScoreOptions ] = React.useState()
 
   const image = {uri: 'https://legacy.reactjs.org/logo-og.png'}
   const { storeData, getData } = useReusableFunctions()
@@ -29,17 +30,32 @@ const ScoreBoard = () => {
           console.log(e)
         }
       }
+      const loadGameOptionsAsync = async () => {
+        const gameOptions = await getData('gameOptions')
+        if (gameOptions) {
+          setScoreOptions(gameOptions.scoreOptions)
+        } else {
+          setScoreOptions('moves')         
+        }
+      }
+      loadGameOptionsAsync()
       loadScoresAsync()
     }, [])
   )
 
+  // Filter and sort scores for the current grid size
   const filterScoresByGridSize = React.useMemo(() => {
     return scoreBoard.filter(score => score.gridSize === filterByGrid)
       .sort((a, b) => {
-        if (a.moves !== b.moves) {
-          return a.moves - b.moves
+        // Sort scores by the selected primary option (moves or time), then by the secondary option
+        const primary = scoreOptions === 'moves' ? 'moves' : 'time'
+        const secondary = scoreOptions === 'moves' ? 'time' : 'moves'
+        if (a[primary] !== b[primary]) {
+          // If primary values differ, sort by primary (ascending)
+          return a[primary] - b[primary]
         }
-        return a.time - b.time        
+        // If primary values are equal, sort by secondary (ascending)
+        return a[secondary] - b[secondary]
       })
   }, [scoreBoard, filterByGrid])
 
