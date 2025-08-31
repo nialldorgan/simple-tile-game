@@ -17,6 +17,7 @@ import { useFocusEffect } from 'expo-router'
 import { useGameStateManager } from '@/hooks/useGameStateManager'
 import { shuffleGameBoard, getNeighbouringSquares } from '@/utils/grid'
 import { chopImageIntoTiles, resizeImage } from '@/utils/images'
+import useGameStore from '@/store/gameStore'
 
 
 // GameBoard component: main logic for the tile puzzle game board
@@ -33,7 +34,6 @@ const GameBoard = forwardRef((props, ref) => {
 
   // Various state variables for game settings and status
   const [ tileColor, setTileColor ] = useState(config.defaultTileProfile.color)
-  const [ gridSize, setGridSize ] = useState(4)
   const [ gameState, setGameState ] = useState([])
   const [ hasStarted, setHasStarted ] = useState(false)
   const [ difficultyLevel, setDifficultyLevel ] = useState(config.difficultyLevels[0].moves)
@@ -41,14 +41,22 @@ const GameBoard = forwardRef((props, ref) => {
   const [ gridOptions, setGridOptions ] = useState(config.gridOptions)
   const [ difficultyMenu, setDifficultyMenu] = useState(false)
   const [ gridSizeMenu, setGridSizeMenu ] = useState(false)
-  const [ numberOfMoves, setNumberOfMoves ] = useState(0)
-  const [ gameTimer, setGameTimer ] = useState(0)
   const [ timerInterval, setTimerInterval ] = useState(0)
   const [ showWinnerDialog, setShowWinnerDialog ] = useState(false)
   const [ showNotTopTenWinnerDialog, setShowNotTopTenWinnerDialog ] = useState(false)
   const [ showShuffleAnimation, setShowShuffleAnimation ] = useState(false)
-  const [ isSoundEnabled, setIsSoundEnabled ] = useState(true)
-  const [ scoreOptions, setScoreOptions ] = useState()
+
+  // Game settings from global store
+  const numberOfMoves = useGameStore((state) => state.numberOfMoves)
+  const setNumberOfMoves = useGameStore((state) => state.incrementMoves)
+  const resetMoves = useGameStore((state) => state.resetMoves)
+  const gameTimer = useGameStore((state) => state.gameTimer)  
+  const setGameTimer = useGameStore((state) => state.incrementTimer)
+  const resetGameTimer = useGameStore((state) => state.stopTimer)
+  //persistent state variables
+  const isSoundEnabled = useGameStore((state) => state.isSoundEnabled)
+  const gridSize = useGameStore((state) => state.defaultGridSize)
+  const scoreOptions = useGameStore((state) => state.scoreOptions)
 
   // State for image tiles and selected image
   const [imageTiles, setImageTiles] = useState([])
@@ -209,7 +217,7 @@ const GameBoard = forwardRef((props, ref) => {
     setHasStarted(false)
     timerInterval? clearInterval(timerInterval) : null      
     setTimerInterval(null)
-    setGameTimer(0)
+    resetGameTimer()
     setGamePhase('resetting')
   }
 
@@ -242,7 +250,7 @@ const GameBoard = forwardRef((props, ref) => {
         }
       }
       if (canMove) {
-        setNumberOfMoves(numberOfMoves => numberOfMoves+1)
+        setNumberOfMoves()
         if (isSoundEnabled) {
           playClickSound()
         }
@@ -287,20 +295,6 @@ const GameBoard = forwardRef((props, ref) => {
           console.log(e)
         }
       }
-      const loadGameOptionsAsync = async () => {
-        const gameOptions = await getData('gameOptions')
-        if (gameOptions) {
-          setScoreOptions(gameOptions.scoreOptions)
-          setIsSoundEnabled(gameOptions.soundOptions)
-          setGridSize(gameOptions.defaultGridSize)
-          setGamePhase('gridSizeChanged')
-        } else {
-          setScoreOptions('moves')
-          setIsSoundEnabled(true)
-          setGridSize(config.defaultGridSize)          
-        }
-      }
-      loadGameOptionsAsync()
       loadScoresAsync()      
     }, [])
   )
@@ -373,8 +367,8 @@ const GameBoard = forwardRef((props, ref) => {
       setGamePhase('idle')
       timerInterval? clearInterval(timerInterval) : null      
       setTimerInterval(null)
-      setGameTimer(0)
-      setNumberOfMoves(0)
+      resetGameTimer()
+      resetMoves(0)
       setTimeout(() => {
         setShowShuffleAnimation(false)
       }, 1000)
@@ -405,10 +399,10 @@ const GameBoard = forwardRef((props, ref) => {
     if (gamePhase === 'ready') {
       setHasStarted(true)
       setGamePhase('idle') // reset phase tracker
-      setNumberOfMoves(0)
-      setGameTimer(0)      
+      resetMoves()
+      resetGameTimer()      
       setTimerInterval(setInterval(() => {        
-        setGameTimer(gameTimer => gameTimer+1)
+        setGameTimer()
       }, 1000))
       setTimeout(() => {
         setShowShuffleAnimation(false)

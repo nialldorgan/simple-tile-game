@@ -1,104 +1,96 @@
 import React from 'react'
-import { View, StyleSheet, SafeAreaView } from 'react-native'
-import { PaperProvider } from 'react-native-paper'
+import { View, StyleSheet } from 'react-native'
 import { ImageBackground } from 'expo-image'
-import { Text, RadioButton, Switch } from 'react-native-paper'
-import { useReusableFunctions } from '@/hooks/useReusableFunctions'
-import { useFocusEffect } from 'expo-router'
-import config from '../../config.json' with { type: "json" }
+import {SafeAreaView, SafeAreaProvider} from 'react-native-safe-area-context'
+import { PaperProvider, Text, RadioButton, Switch } from 'react-native-paper'
+import useGameStore from '@/store/gameStore'
 
 const SettingsScreen = () => {
-  const { storeData, getData } = useReusableFunctions()
-  const [ isSoundEnabled, setIsSoundEnabled ] = React.useState()
-  const [ scoreOptions, setScoreOptions ] = React.useState()
-  const [ defaultGridSize, setDefaultGridSize ] = React.useState()
-  const [ gameOptions, setGameOptions ] = React.useState()
-  const [ hasLoadedSettings, setHasLoadedSettings ] = React.useState(false)
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const loadGameOptionsAsync = async () => {
-        const gameOptions = await getData('gameOptions')
-        if (gameOptions) {
-          setScoreOptions(gameOptions.scoreOptions)
-          setIsSoundEnabled(gameOptions.soundOptions)
-          setDefaultGridSize(gameOptions.defaultGridSize)
-        } else {
-          setScoreOptions('moves')
-          setIsSoundEnabled(true)
-          setDefaultGridSize(config.defaultGridSize)
-          setGameOptions({scoreOptions: 'moves', soundOptions: true, defaultGridSize: config.defaultGridSize})
-        }
-        setHasLoadedSettings(true)
-      }
-      loadGameOptionsAsync()
-    }, [])
-  )
+  const isSoundEnabled = useGameStore((state) => state.isSoundEnabled)
+  const defaultGridSize = useGameStore((state) => state.defaultGridSize)
+  const scoreOptions = useGameStore((state) => state.scoreOptions)
+
+  const setSoundEnabled = useGameStore((state) => state.setSoundEnabled)
+  const setDefaultGridSize = useGameStore((state) => state.setDefaultGridSize)
+  const setScoreOptions = useGameStore((state) => state.setScoreOptions)
 
   React.useEffect(() => {
-    if (hasLoadedSettings) {
-      storeData({scoreOptions: scoreOptions, soundOptions: isSoundEnabled, defaultGridSize: defaultGridSize}, 'gameOptions')
+    useGameStore.getState().hydrateSettings()
+  }, [])
+
+  // Save settings to AsyncStorage
+  const saveSettings = (changedValue) => {    
+    if (typeof changedValue === 'string') {
+      setScoreOptions(changedValue)
+    } else if (typeof changedValue === 'boolean') {
+      setSoundEnabled(changedValue)
+    } else if (typeof changedValue === 'number') {
+      setDefaultGridSize(changedValue)
     }
-  }, [scoreOptions, isSoundEnabled, defaultGridSize])
+  }
 
   return (
     <PaperProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#25292e' }}>
-        <ImageBackground 
-        contentFit="cover"
-        transition={1000}
-        source={require('@/assets/images/simple-tile-puzzle-background.png')} 
-        style={styles.background}>
-          <View style={{alignItems: 'center'}}>
-            <Text variant='headlineMedium' style={styles.textHeader}>Slider Challenge</Text>
-            <Text variant='headlineMedium' style={styles.textHeader}>Settings</Text>
-          </View>
-          <View style={{flexDirection: 'row', alignItems: 'center', alignSelf: 'center', justifyContent: 'space-between', width: '80%', marginTop: 20}}>
-            <Text style={styles.label}>Sound enabled</Text>
-            <Switch
-              color='#0aedf5'
-              value={isSoundEnabled}
-              onValueChange={setIsSoundEnabled}
-            />
-          </View>
-          <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
-            <Text style={styles.label}>Score top ten:</Text>
-            <RadioButton.Group onValueChange={(scoreOptions) => setScoreOptions(scoreOptions)} value={scoreOptions} >
-              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='By moves' value='moves'></RadioButton.Item>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='By time' value='time'></RadioButton.Item>
-              </View>
-            </RadioButton.Group>
-          </View>
-          <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
-            <Text style={styles.label}>Default grid size</Text>
-            <RadioButton.Group onValueChange={(defaultGridSize) => setDefaultGridSize(defaultGridSize)} value={defaultGridSize} >
-              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='3x3' value={3}></RadioButton.Item>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='4x4' value={4}></RadioButton.Item>
-              </View>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='5x5' value={5}></RadioButton.Item>
-                <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='6x6' value={6}></RadioButton.Item>
-              </View>
-            </RadioButton.Group>
-          </View>
-          <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
-            <Text style={{fontSize: 12, color: '#fff'}}>Updating settings will cause the board to reset</Text>
-          </View>
-        </ImageBackground>
-      </SafeAreaView> 
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#25292e' }}>
+          <ImageBackground 
+          contentFit="cover"
+          transition={1000}
+          source={require('@/assets/images/simple-tile-puzzle-background.png')} 
+          style={styles.background}>
+            <View style={{alignItems: 'center'}}>
+              <Text variant='headlineMedium' style={styles.textHeader}>Slider Challenge</Text>
+              <Text variant='headlineMedium' style={styles.textHeader}>Settings</Text>
+            </View>
+            <View style={{flexDirection: 'row', alignItems: 'center', alignSelf: 'center', justifyContent: 'space-between', width: '80%', marginTop: 20}}>
+              <Text style={styles.label}>Sound enabled*</Text>
+              <Switch
+                color='#0aedf5'
+                value={isSoundEnabled}
+                onValueChange={saveSettings}
+              />
+            </View>
+            <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
+              <Text style={styles.label}>Score top ten:</Text>
+              <RadioButton.Group onValueChange={saveSettings} value={scoreOptions} >
+                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='By moves' value='moves'></RadioButton.Item>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='By time' value='time'></RadioButton.Item>
+                </View>
+              </RadioButton.Group>
+            </View>
+            <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
+              <Text style={styles.label}>Default grid size</Text>
+              <RadioButton.Group onValueChange={saveSettings} value={defaultGridSize} >
+                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='3x3' value={3}></RadioButton.Item>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='4x4' value={4}></RadioButton.Item>
+                </View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='5x5' value={5}></RadioButton.Item>
+                  <RadioButton.Item color='#0aedf5' uncheckedColor='#7868ed' labelStyle={{color: '#ffff'}} label='6x6' value={6}></RadioButton.Item>
+                </View>
+              </RadioButton.Group>
+            </View>
+            <View style={{flexDirection: 'column', width: '80%', alignSelf: 'center', marginTop: 20}}>
+              <Text style={{fontSize: 12, color: '#fff'}}>*Updated sound settings will only take effect when the board is reset</Text>
+            </View>
+          </ImageBackground>
+        </SafeAreaView> 
+      </SafeAreaProvider>
     </PaperProvider>
   )
 }
 
 const styles = StyleSheet.create({
-  background: {
+   background: {
     flex: 1,
-    justifyContent: 'center',    
+    justifyContent: 'center',
+    alignItems: 'center',
     height: '100%',
     width: '100%'
-  }, 
+  },
   settingRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
