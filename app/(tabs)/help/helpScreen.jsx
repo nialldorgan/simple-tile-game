@@ -28,6 +28,22 @@ export default function helpScreen() {
                 variant="headlineSmall"
                 style={styles.textSubHeader}
               >
+                General
+              </Text>
+              <View style={{ marginBottom: 12, maxWidth: 300 }}>
+                <Text style={styles.text}>This simple tile puzzle is based on the 15-puzzle game. 
+                  The objective is to arrange the tiles in a specific order by sliding them into the empty space.
+                  You have the option of playing on 4 different grid sizes: 3x3, 4x4, 5x5, and 6x6.
+                  You can choose to play with numbered tiles or with image tiles.
+                  An image can be selected from your device if you have a photo album.
+                  The game remembers the last image you used. 
+                  You can select a default grid size and whether to score by moves or time in settings.
+                </Text>
+              </View>
+              <Text
+                variant="headlineSmall"
+                style={styles.textSubHeader}
+              >
                 How to Play
               </Text>
               <View style={{ marginBottom: 12, maxWidth: 300 }}>
@@ -39,7 +55,7 @@ export default function helpScreen() {
                 variant="headlineSmall"
                 style={styles.textSubHeader}
               >
-                Menu
+                Game controls
               </Text>
               <View style={{ marginBottom: 12, maxWidth: 300 }}>
                 {[
@@ -69,9 +85,26 @@ export default function helpScreen() {
               <View style={{ marginBottom: 12, maxWidth: 300 }}>
                 <Text style={styles.text}>1. Plan your moves ahead.</Text>
                 <Text style={styles.text}>2. Try to solve from the top line first, then each line in turn.</Text>
+                <Text style={styles.text}>3. All the puzzles are solvable.</Text>
+              </View>
+              <Text
+                variant="headlineSmall"
+                style={styles.textSubHeader}
+              >
+                Scoring
+              </Text>
+              <View style={{ marginBottom: 12, maxWidth: 300 }}>
+                <Text style={styles.text}>
+                  The default scoring system is based on the number of moves taken to solve the puzzle. 
+                  You can change this in settings to score by the time taken to solve the puzzle instead.
+                  There is a top ten list for each grid size.
+                  You can clear each top ten individually by clicking the clear button at the top of each list in the scores screen.
+                  If the primary score is moves the secondary score will be time.
+                  If there are two scores with the same primary score the one with the better secondary score will be ranked higher.
+                  Changing the score option will not clear the existing top ten lists but it will re-rank them.
+                </Text>
               </View>
               <View style={{ alignItems: 'center', marginTop: 24 }}>
-                
                 <Link href="/help/about">
                   <Text
                     variant="titleMedium"

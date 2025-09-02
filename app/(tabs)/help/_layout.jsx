@@ -12,8 +12,14 @@ export default function Layout() {
           fontSize: 20,
         },
     }}>
-      <Stack.Screen name="helpScreen" />
-      <Stack.Screen name="about"/>
+      <Stack.Screen name="helpScreen"  
+      options={{
+        title: "Help",
+      }} />
+      <Stack.Screen name="about"  
+      options={{
+        title: "About",
+      }} />
     </Stack>
   );
 }

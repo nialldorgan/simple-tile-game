@@ -26,7 +26,7 @@ export default function about() {
                 <Text style={styles.sectionTitle}>Publisher</Text>
                 <Text style={styles.text}>Palm Tree Software</Text>
                 <Text style={styles.sectionTitle}>Version</Text>
-                <Text style={styles.text}>1.0.0</Text>
+                <Text style={styles.text}>1.0.1</Text>
                 <Text style={styles.sectionTitle}>Copyright</Text>
                 <Text style={styles.text}>© 2025 Palm Tree Software. All rights reserved.</Text>
               </View>

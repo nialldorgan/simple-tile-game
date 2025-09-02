@@ -55,8 +55,9 @@ const GameBoard = forwardRef((props, ref) => {
   const resetGameTimer = useGameStore((state) => state.stopTimer)
   //persistent state variables
   const isSoundEnabled = useGameStore((state) => state.isSoundEnabled)
-  const gridSize = useGameStore((state) => state.defaultGridSize)
+  const defaultGridSize = useGameStore((state) => state.defaultGridSize)
   const scoreOptions = useGameStore((state) => state.scoreOptions)
+  const [gridSize, setGridSize] = useState(defaultGridSize)
 
   // State for image tiles and selected image
   const [imageTiles, setImageTiles] = useState([])
@@ -172,10 +173,15 @@ const GameBoard = forwardRef((props, ref) => {
     const topScores = []
     Object.keys(grouped).forEach(gridSize => {
       const sorted = grouped[gridSize].sort((a, b) => {
-        if (a.moves !== b.moves) {
-          return a.moves - b.moves
+        // Sort scores by the selected primary option (moves or time), then by the secondary option
+        const primary = scoreOptions === 'moves' ? 'moves' : 'time'
+        const secondary = scoreOptions === 'moves' ? 'time' : 'moves'
+        if (a[primary] !== b[primary]) {
+          // If primary values differ, sort by primary (ascending)
+          return a[primary] - b[primary]
         }
-        return a.time - b.time
+        // If primary values are equal, sort by secondary (ascending)
+        return a[secondary] - b[secondary]
       })
       topScores.push(...sorted.slice(0, 10))
     })
@@ -299,6 +305,14 @@ const GameBoard = forwardRef((props, ref) => {
     }, [])
   )
 
+  React.useEffect(() => {
+    useGameStore.getState().hydrateSettings()    
+  }, [])
+
+  React.useEffect(() => {
+    setGridSize(defaultGridSize)
+  }, [defaultGridSize])
+
   // Recreate board when grid size, image, or color changes
   useEffect(() => {
     const initialState = createInitialState(
@@ -339,9 +353,9 @@ const GameBoard = forwardRef((props, ref) => {
   useEffect(() => {
     if (gamePhase === 'idle' && hasStarted && checkForVictory(gameState)) {
       const isTopTen = filterScoresByGridSize.length < 10 ||
-        scoreOptions === 'moves'? 
+        (scoreOptions === 'moves' ? 
         filterScoresByGridSize.some(score => score.moves > numberOfMoves) : 
-        filterScoresByGridSize.some(score => score.time > gameTimer)
+        filterScoresByGridSize.some(score => score.time > gameTimer))
 
       if (isSoundEnabled) {
         playVictoryFanfare()
