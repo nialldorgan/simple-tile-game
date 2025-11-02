@@ -271,7 +271,10 @@ const GameBoard = forwardRef((props, ref) => {
         }
       }
       if (canMove) {
-        setNumberOfMoves()
+        setTimeout(() => {
+          setNumberOfMoves()
+        }, 0);
+        
         if (isSoundEnabled) {
           playClickSound()
         }
