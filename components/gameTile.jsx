@@ -1,4 +1,4 @@
-import { Animated, View, StyleSheet, Pressable, Text } from 'react-native'
+import { Animated, View, StyleSheet, Pressable, Text, PanResponder } from 'react-native'
 import { useState, useRef, useEffect } from 'react'
 import { Image } from 'expo-image'
 
@@ -23,7 +23,31 @@ export type TileProps = {
 export function GameTile ({background = '#868686ff', textColor = '#black', size = 30, label = null, 
   img = null, currentPosition = {rowIndex:0, colIndex:0}, homePosition, handleTileClick, showShuffleAnimation}: TileProps) {
     const [tileIndex, setTileIndex] = useState(parseInt(label))
-    const scale = useRef(new Animated.Value(0)).current    
+    const scale = useRef(new Animated.Value(0)).current
+    const currentPosRef = useRef(currentPosition);
+    useEffect(() => {
+      currentPosRef.current = currentPosition;
+    }, [currentPosition]);
+    const pan = useRef(new Animated.ValueXY()).current;
+
+    const handlePanGesture = (dx: number, dy: number) => {
+      const pos = currentPosRef.current;
+      const direction = 
+        Math.abs(dx) > Math.abs(dy)
+          ? dx < 0 ? 'left' : 'right'
+          : dy < 0 ? 'up' : 'down';
+      
+      handleTileClick(homePosition, pos, tileIndex, direction);
+    };
+
+    const panResponder = useRef(
+      PanResponder.create({
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderRelease: (_, gestureState) => {
+          handlePanGesture(gestureState.dx, gestureState.dy);
+        }
+      })
+    ).current;
 
     useEffect(() => {
       if (showShuffleAnimation) {
@@ -32,7 +56,7 @@ export function GameTile ({background = '#868686ff', textColor = '#black', size 
           friction: 5,
           delay: currentPosition.colIndex * 30,
           useNativeDriver: true,
-        }).start()
+        }).start();
       } else {
         scale.setValue(1)
       }
@@ -54,7 +78,7 @@ export function GameTile ({background = '#868686ff', textColor = '#black', size 
           </Pressable>
         </Animated.View>
       ) : (
-        <Animated.View style={{ backgroundColor: background, height: size, width: size, transform: [{ scale }] }}>
+        <Animated.View style={{ backgroundColor: background, height: size, width: size, transform: [{ scale }] }} {...panResponder.panHandlers}>
           <Pressable
             style={styles.gameTile}
             onPress={() => handleTileClick(homePosition, currentPosition, tileIndex)}

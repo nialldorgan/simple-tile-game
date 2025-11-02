@@ -228,18 +228,33 @@ const GameBoard = forwardRef((props, ref) => {
   }
 
   // Handle tile press: move tile if possible, play sound or haptic
-  const onTilePressed = React.useCallback((homePosition, currentPosition, tileIndex) => {
+  const onTilePressed = React.useCallback((homePosition, currentPosition, tileIndex, moveDirection = 'any') => {
     const { rowIndex, colIndex } = currentPosition
-    const neighbours = getNeighbouringSquares(rowIndex, colIndex, gridSize)
+
+    // Get valid neighbouring squares based on move direction
+    const getValidNeighbours = (neighbours) => {
+      const directionFilters = {
+        up: (n) => n.row < rowIndex && n.col === colIndex,
+        down: (n) => n.row > rowIndex && n.col === colIndex,
+        left: (n) => n.col < colIndex && n.row === rowIndex,
+        right: (n) => n.col > colIndex && n.row === rowIndex,
+        any: () => true
+      }
+      return neighbours.filter(directionFilters[moveDirection] || directionFilters.any)
+    }
+
+    const neighbours = getValidNeighbours(getNeighbouringSquares(rowIndex, colIndex, gridSize))
     let canMove = false
+
     setGameState(prevState => {
-      // Deep clone the previous state
+      // Create deep copy of game state
       const newGameState = prevState.map(rowArr =>
         rowArr.map(cell => ({
           ...cell,
           tileProps: cell.tileProps ? { ...cell.tileProps } : null
         }))
       )
+
 
       for (const { row, col } of neighbours) {
         if (!newGameState[row][col].hasTile) {
